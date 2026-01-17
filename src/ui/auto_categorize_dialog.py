@@ -47,23 +47,26 @@ class AutoCategorizeDialog(ctk.CTkToplevel):
         content.pack(fill="both", expand=True, padx=20, pady=(0, 20))
         
         # Method selection
-        method_label = ctk.CTkLabel(content, text="Method:",
+        method_label = ctk.CTkLabel(content, text="Methods (select multiple):",
                                     font=ctk.CTkFont(size=13, weight="bold"))
         method_label.pack(anchor="w", pady=(15, 5), padx=15)
         
-        self.method_var = ctk.StringVar(value="tags")
+        self.method_tags = ctk.BooleanVar(value=True)
+        self.method_publisher = ctk.BooleanVar(value=False)
+        self.method_franchise = ctk.BooleanVar(value=False)
+        self.method_genre = ctk.BooleanVar(value=False)
         
         methods = [
-            ("tags", "By Steam Tags (Recommended)"),
-            ("publisher", "By Publisher"),
-            ("franchise", "By Franchise (LEGO, AC, etc.)"),
-            ("genre", "By Genre"),
+            (self.method_tags, "By Steam Tags (Recommended)"),
+            (self.method_publisher, "By Publisher"),
+            (self.method_franchise, "By Franchise (LEGO, AC, etc.)"),
+            (self.method_genre, "By Genre"),
         ]
         
-        for value, text in methods:
-            rb = ctk.CTkRadioButton(content, text=text, variable=self.method_var,
-                                   value=value, command=self._update_ui)
-            rb.pack(anchor="w", padx=30, pady=2)
+        for var, text in methods:
+            cb = ctk.CTkCheckBox(content, text=text, variable=var,
+                                command=self._update_ui)
+            cb.pack(anchor="w", padx=30, pady=2)
         
         # Separator
         sep1 = ctk.CTkFrame(content, height=2, fg_color=("gray70", "gray30"))

@@ -463,8 +463,8 @@ class MainWindow(ctk.CTk):
         if not settings:
             return
         
-        # Create backup
-        backup_path = config.STEAM_PATH / 'userdata' / config.STEAM_USER_ID / 'config' / \
+        # Create backup (in same directory as localconfig.vdf!)
+        backup_path = self.vdf_parser.config_path.parent / \
                      f'localconfig_backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.vdf'
         
         import shutil
