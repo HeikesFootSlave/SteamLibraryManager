@@ -1,5 +1,5 @@
 """
-Auto-Categorize Dialog
+Auto-Categorize Dialog - MIT CHECKBOXEN für mehrere Methoden!
 """
 
 import customtkinter as ctk
@@ -46,11 +46,12 @@ class AutoCategorizeDialog(ctk.CTkToplevel):
         content = ctk.CTkFrame(self)
         content.pack(fill="both", expand=True, padx=20, pady=(0, 20))
         
-        # Method selection
+        # Method selection - ✅ CHECKBOXEN statt Radio-Buttons!
         method_label = ctk.CTkLabel(content, text="Methods (select multiple):",
                                     font=ctk.CTkFont(size=13, weight="bold"))
         method_label.pack(anchor="w", pady=(15, 5), padx=15)
         
+        # ✅ CHECKBOXEN für jede Methode
         self.method_tags = ctk.BooleanVar(value=True)
         self.method_publisher = ctk.BooleanVar(value=False)
         self.method_franchise = ctk.BooleanVar(value=False)
@@ -72,7 +73,7 @@ class AutoCategorizeDialog(ctk.CTkToplevel):
         sep1 = ctk.CTkFrame(content, height=2, fg_color=("gray70", "gray30"))
         sep1.pack(fill="x", padx=15, pady=15)
         
-        # Tags settings (only visible for tags method)
+        # Tags settings (only visible when tags is checked)
         self.tags_frame = ctk.CTkFrame(content, fg_color="transparent")
         
         tags_label = ctk.CTkLabel(self.tags_frame, text="Tags per game:",
@@ -181,8 +182,8 @@ class AutoCategorizeDialog(ctk.CTkToplevel):
     
     def _update_ui(self):
         """Update UI based on selections"""
-        # Show/hide tags settings
-        if self.method_var.get() == "tags":
+        # Show/hide tags settings (nur wenn Tags-Checkbox aktiviert)
+        if self.method_tags.get():
             self.tags_frame.pack(fill="x", pady=(0, 10))
         else:
             self.tags_frame.pack_forget()
@@ -191,8 +192,19 @@ class AutoCategorizeDialog(ctk.CTkToplevel):
         scope = self.scope_var.get()
         game_count = self.all_games_count if scope == "all" else len(self.games)
         
-        # Estimate time (1.5s per game for tags)
-        if self.method_var.get() == "tags":
+        # ✅ Count selected methods
+        selected_methods = []
+        if self.method_tags.get():
+            selected_methods.append('tags')
+        if self.method_publisher.get():
+            selected_methods.append('publisher')
+        if self.method_franchise.get():
+            selected_methods.append('franchise')
+        if self.method_genre.get():
+            selected_methods.append('genre')
+        
+        # Estimate time (1.5s per game for tags, instant for others)
+        if 'tags' in selected_methods:
             seconds = int(game_count * 1.5)
             minutes = seconds // 60
             if minutes > 0:
@@ -202,14 +214,34 @@ class AutoCategorizeDialog(ctk.CTkToplevel):
         else:
             time_str = "< 1 second"
         
+        methods_text = f"{len(selected_methods)} method(s) selected" if selected_methods else "No methods selected"
+        
         self.estimate_label.configure(
-            text=f"Estimated time: {time_str}\n({game_count} games)"
+            text=f"Estimated time: {time_str}\n({game_count} games, {methods_text})"
         )
     
     def start(self):
         """Start auto-categorization"""
+        # ✅ Get ALL selected methods
+        selected_methods = []
+        if self.method_tags.get():
+            selected_methods.append('tags')
+        if self.method_publisher.get():
+            selected_methods.append('publisher')
+        if self.method_franchise.get():
+            selected_methods.append('franchise')
+        if self.method_genre.get():
+            selected_methods.append('genre')
+        
+        # Validation
+        if not selected_methods:
+            from tkinter import messagebox
+            messagebox.showwarning("No Method Selected", 
+                                  "Please select at least one categorization method!")
+            return
+        
         self.result = {
-            'method': self.method_var.get(),
+            'methods': selected_methods,  # ✅ Liste von Methoden statt nur eine
             'scope': self.scope_var.get(),
             'tags_count': self.tags_count.get(),
             'ignore_common': self.ignore_common.get()
