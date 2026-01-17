@@ -463,9 +463,10 @@ class MainWindow(ctk.CTk):
         if not settings:
             return
         
-        # Create backup (in same directory as localconfig.vdf!)
-        backup_path = self.vdf_parser.config_path.parent / \
-                     f'localconfig_backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.vdf'
+        # 🔧 FIX: Create backup in CORRECT directory (same as localconfig.vdf)
+        backup_dir = self.vdf_parser.config_path.parent
+        backup_filename = f'localconfig_backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.vdf'
+        backup_path = backup_dir / backup_filename
         
         import shutil
         shutil.copy2(self.vdf_parser.config_path, backup_path)
@@ -478,7 +479,8 @@ class MainWindow(ctk.CTk):
             games = self.selected_games if hasattr(self, 'selected_games') else \
                    self.game_manager.get_uncategorized_games()
         
-        method = settings['method']
+        # 🔧 FIX: Get ALL selected methods (can be multiple!)
+        methods = settings['methods']
         
         # Progress dialog
         progress = ctk.CTkToplevel(self)
@@ -500,16 +502,20 @@ class MainWindow(ctk.CTk):
         
         self.update()
         
-        # Execute based on method
-        if method == 'tags':
-            self._categorize_by_tags(games, settings, progress_label, 
-                                    progress_bar, status_label)
-        elif method == 'publisher':
-            self._categorize_by_publisher(games, progress_label)
-        elif method == 'franchise':
-            self._categorize_by_franchise(games, progress_label)
-        elif method == 'genre':
-            self._categorize_by_genre(games, progress_label)
+        # 🔧 FIX: Execute ALL selected methods
+        total_methods = len(methods)
+        for i, method in enumerate(methods):
+            progress_label.configure(text=f"Method {i+1}/{total_methods}: {method}")
+            
+            if method == 'tags':
+                self._categorize_by_tags(games, settings, progress_label, 
+                                        progress_bar, status_label)
+            elif method == 'publisher':
+                self._categorize_by_publisher(games, progress_label)
+            elif method == 'franchise':
+                self._categorize_by_franchise(games, progress_label)
+            elif method == 'genre':
+                self._categorize_by_genre(games, progress_label)
         
         # Save and refresh
         self.vdf_parser.save()
@@ -518,6 +524,7 @@ class MainWindow(ctk.CTk):
         
         messagebox.showinfo("Success", 
                           f"Auto-categorization complete!\n\n"
+                          f"Applied {total_methods} method(s)\n"
                           f"Backup saved: {backup_path.name}")
     
     def _categorize_by_tags(self, games: List[Game], settings: dict,
