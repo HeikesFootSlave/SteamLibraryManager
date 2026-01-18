@@ -1,17 +1,23 @@
 #!/usr/bin/env python3
-"""Steam Library Manager - Main Entry"""
+"""
+Steam Library Manager - Main Entry Point (PyQt6 Version)
+
+Speichern als: src/main.py
+"""
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from PyQt6.QtWidgets import QApplication
 from src.config import config
 from src.utils.i18n import init_i18n
 from src.ui.main_window import MainWindow
 
+
 def main():
     print("=" * 60)
-    print("🎮  Steam Library Manager v1.0")
+    print("🎮  Steam Library Manager v1.0 (PyQt6)")
     print("=" * 60)
     
     print("🌍 Initializing...")
@@ -27,16 +33,26 @@ def main():
     else:
         print("⚠️  Steam not found")
     
-    print("\n🚀 Starting application...\n")
+    print("\n🚀 Starting application with PyQt6...\n")
     
     try:
-        app = MainWindow()
-        app.mainloop()
+        app = QApplication(sys.argv)
+        app.setApplicationName("Steam Library Manager")
+        
+        # Qt automatically detects and applies system theme (KDE Breeze, GNOME Adwaita, etc.)
+        print("✓ Using native Qt theme")
+        
+        window = MainWindow()
+        window.show()
+        
+        sys.exit(app.exec())
+        
     except Exception as e:
         print(f"\n❌ Error: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
