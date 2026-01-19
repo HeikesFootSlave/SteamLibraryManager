@@ -1,106 +1,96 @@
 """
-Settings Dialog V2 - Getrennte UI/Tags Sprache + Live Switch
-
+Settings Dialog - Mit i18n für Sprachen und Flaggen
 Speichern als: src/ui/settings_dialog.py
 """
-
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
-    QPushButton, QLabel, QComboBox, QLineEdit, QFileDialog,
-    QTabWidget, QWidget, QCheckBox, QSpinBox, QGroupBox
+    QDialog, QVBoxLayout, QFormLayout, QComboBox, 
+    QPushButton, QHBoxLayout, QMessageBox, QGroupBox, QLabel
 )
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QFont
-from typing import Optional, Dict
-from pathlib import Path
-
 from src.config import config
 from src.utils.i18n import t
 
-
 class SettingsDialog(QDialog):
-    """Settings Dialog mit getrennter UI/Tags Sprache"""
-
-    # Signals
-    language_changed = pyqtSignal(str)  # Emitted when UI language changes
-
-    # Language codes und Flags
-    LANGUAGES = {
-        'en': ('🇬🇧', 'English'),
-        'de': ('🇩🇪', 'Deutsch')
-    }
-
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         super().__init__(parent)
-
         self.setWindowTitle(t('ui.settings.title'))
-        self.setMinimumWidth(650)
-        self.setMinimumHeight(550)
-        self.setModal(True)
-
-        self.result_settings = None
-        self.original_ui_language = config.UI_LANGUAGE
+        self.setMinimumWidth(500)
         self._create_ui()
         self._load_current_settings()
 
     def _create_ui(self):
-        """Create UI"""
         layout = QVBoxLayout(self)
 
-        # Title
-        title = QLabel(t('ui.settings.title'))
-        title.setFont(QFont("Arial", 16, QFont.Weight.Bold))
-        layout.addWidget(title)
+        # --- Allgemein ---
+        group_general = QGroupBox(t('ui.settings.general'))
+        form_general = QFormLayout(group_general)
 
-        # Tabs
-        tabs = QTabWidget()
+        # Sprachauswahl mit Flaggen (Emojis) und i18n
+        self.combo_language = QComboBox()
+        # WICHTIG: Nutze t() für die Anzeigenamen!
+        # In en.json steht bei settings.languages.de "German", in de.json "Deutsch"
+        self.combo_language.addItem(f"🇩🇪 {t('ui.settings.languages.de')}", "de")
+        # In en.json steht bei settings.languages.en "English", in de.json "Englisch"
+        self.combo_language.addItem(f"🇺🇸 {t('ui.settings.languages.en')}", "en")
+        
+        form_general.addRow(t('ui.settings.language'), self.combo_language)
 
-        # Tab 1: General
-        general_tab = self._create_general_tab()
-        tabs.addTab(general_tab, t('ui.settings.general'))
+        # Theme Auswahl
+        self.combo_theme = QComboBox()
+        self.combo_theme.addItem(f"🌑 {t('ui.settings.themes.dark')}", "dark")
+        self.combo_theme.addItem(f"☀️ {t('ui.settings.themes.light')}", "light")
+        form_general.addRow(t('ui.settings.theme'), self.combo_theme)
 
-        # Tab 2: Auto-Categorization
-        auto_cat_tab = self._create_auto_cat_tab()
-        tabs.addTab(auto_cat_tab, t('ui.settings.auto_categorization'))
+        layout.addWidget(group_general)
 
-        layout.addWidget(tabs)
-
-        # Info label
-        info_label = QLabel(
-            "ℹ️ UI Language changes immediately.\n"
-            "Tags Language applies to new Auto-Categorizations."
-        )
-        info_label.setStyleSheet("color: gray; font-size: 10px; padding: 10px;")
-        info_label.setWordWrap(True)
-        layout.addWidget(info_label)
-
-        # Buttons
+        # --- Buttons ---
         btn_layout = QHBoxLayout()
+        btn_save = QPushButton(t('ui.settings.save'))
+        btn_save.clicked.connect(self._save_settings)
+        
+        btn_cancel = QPushButton(t('ui.settings.cancel'))
+        btn_cancel.clicked.connect(self.reject)
+        
         btn_layout.addStretch()
-
-        cancel_btn = QPushButton(t('ui.settings.cancel'))
-        cancel_btn.clicked.connect(self.reject)
-        btn_layout.addWidget(cancel_btn)
-
-        save_btn = QPushButton(t('ui.settings.save'))
-        save_btn.clicked.connect(self._save)
-        save_btn.setDefault(True)
-        btn_layout.addWidget(save_btn)
-
+        btn_layout.addWidget(btn_cancel)
+        btn_layout.addWidget(btn_save)
         layout.addLayout(btn_layout)
 
-    def _create_general_tab(self) -> QWidget:
-        """General settings tab"""
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
+    def _load_current_settings(self):
+        """Lädt aktuelle Werte in die GUI"""
+        # Sprache setzen
+        index = self.combo_language.findData(config.UI_LANGUAGE)
+        if index >= 0:
+            self.combo_language.setCurrentIndex(index)
+            
+        # Theme setzen
+        index_theme = self.combo_theme.findData(config.THEME)
+        if index_theme >= 0:
+            self.combo_theme.setCurrentIndex(index_theme)
 
-        # Language Group
-        lang_group = QGroupBox(t('ui.settings.language'))
-        lang_layout = QFormLayout()
-
-        # UI Language
-        ui_lang_label = QLabel("<b>Interface Language:</b>")
-        lang_layout.addRow(ui_lang_label)
+    def _save_settings(self):
+        """Speichert Werte"""
+        selected_lang = self.combo_language.currentData()
+        selected_theme = self.combo_theme.currentData()
+        
+        restart_required = False
+        if selected_lang != config.UI_LANGUAGE:
+            restart_required = True
+            
+        # Werte in Config übernehmen
+        config.UI_LANGUAGE = selected_lang
+        config.THEME = selected_theme
+        
+        # Auf Festplatte speichern
+        config.save()
+        
+        if restart_required:
+            QMessageBox.information(
+                self, 
+                t('ui.dialogs.info'), 
+                t('ui.settings.restart_required')
+            )
+            
+        self.accept()        lang_layout.addRow(ui_lang_label)
 
         self.ui_language_combo = QComboBox()
         for code, (flag, name) in self.LANGUAGES.items():
