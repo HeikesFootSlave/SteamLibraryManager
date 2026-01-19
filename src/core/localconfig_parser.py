@@ -8,6 +8,7 @@ import shutil
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 from datetime import datetime
+from src.utils.i18n import t
 
 
 class LocalConfigParser:
@@ -38,16 +39,16 @@ class LocalConfigParser:
             try:
                 self.apps = self.data['UserLocalConfigStore']['Software']['Valve']['Steam']['Apps']
             except KeyError:
-                print("Warning: Apps section not found in localconfig.vdf")
+                print(t('logs.parser.apps_not_found'))
                 self.apps = {}
             
             return True
             
         except FileNotFoundError:
-            print(f"Error: localconfig.vdf not found at {self.config_path}")
+            print(t('logs.parser.file_not_found', path=self.config_path))
             return False
         except Exception as e:
-            print(f"Error loading localconfig.vdf: {e}")
+            print(t('logs.parser.load_error', error=e))
             return False
     
     def save(self, create_backup: bool = True) -> bool:
@@ -61,7 +62,7 @@ class LocalConfigParser:
             True wenn erfolgreich
         """
         if not self.modified:
-            print("No changes to save")
+            print(t('logs.parser.no_changes'))
             return True
         
         try:
@@ -74,7 +75,7 @@ class LocalConfigParser:
                 vdf.dump(self.data, f, pretty=True)
             
             self.modified = False
-            print(f"✓ Saved localconfig.vdf")
+            print(t('logs.parser.saved'))
             return True
             
         except Exception as e:
@@ -86,7 +87,7 @@ class LocalConfigParser:
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         backup_path = self.config_path.parent / f'localconfig_backup_{timestamp}.vdf'
         shutil.copy2(self.config_path, backup_path)
-        print(f"✓ Backup created: {backup_path.name}")
+        print(t('ui.dialogs.backup_created', path=backup_path.name))
     
     def get_all_app_ids(self) -> List[str]:
         """
@@ -101,6 +102,201 @@ class LocalConfigParser:
         """
         Hole Kategorien für ein Spiel
         
+        Args:
+            app_id: Steam App ID
+            
+        Returns:
+            Liste von Kategorien
+        """
+        if app_id not in self.apps:
+            return []
+        
+        app_data = self.apps[app_id]
+        
+        if 'tags' not in app_data:
+            return []
+        
+        tags = app_data['tags']
+        
+        # Tags sind als Dict gespeichert: {"0": "RPG", "1": "Action", ...}
+        categories = []
+        for key in sorted(tags.keys(), key=lambda x: int(x) if x.isdigit() else 0):
+            categories.append(tags[key])
+        
+        return categories
+    
+    def set_app_categories(self, app_id: str, categories: List[str]):
+        """
+        Setze Kategorien für ein Spiel
+        
+        Args:
+            app_id: Steam App ID
+            categories: Liste von Kategorien
+        """
+        if app_id not in self.apps:
+            self.apps[app_id] = {}
+        
+        # Lösche alte tags
+        if 'tags' in self.apps[app_id]:
+            del self.apps[app_id]['tags']
+        
+        # Setze neue tags
+        if categories:
+            tags = {}
+            for i, category in enumerate(categories):
+                tags[str(i)] = category
+            self.apps[app_id]['tags'] = tags
+        
+        self.modified = True
+    
+    def add_app_category(self, app_id: str, category: str):
+        """
+        Füge Kategorie zu einem Spiel hinzu
+        
+        Args:
+            app_id: Steam App ID
+            category: Kategorie-Name
+        """
+        current_categories = self.get_app_categories(app_id)
+        
+        if category not in current_categories:
+            current_categories.append(category)
+            self.set_app_categories(app_id, current_categories)
+    
+    def remove_app_category(self, app_id: str, category: str):
+        """
+        Entferne Kategorie von einem Spiel
+        
+        Args:
+            app_id: Steam App ID
+            category: Kategorie-Name
+        """
+        current_categories = self.get_app_categories(app_id)
+        
+        if category in current_categories:
+            current_categories.remove(category)
+            self.set_app_categories(app_id, current_categories)
+    
+    def get_all_categories(self) -> Set[str]:
+        """
+        Hole alle verwendeten Kategorien
+        
+        Returns:
+            Set von Kategorie-Namen
+        """
+        categories = set()
+        
+        for app_id in self.apps:
+            app_categories = self.get_app_categories(app_id)
+            categories.update(app_categories)
+        
+        return categories
+    
+    def get_apps_by_category(self, category: str) -> List[str]:
+        """
+        Hole alle Spiele in einer Kategorie
+        
+        Args:
+            category: Kategorie-Name
+            
+        Returns:
+            Liste von App IDs
+        """
+        apps = []
+        
+        for app_id in self.apps:
+            if category in self.get_app_categories(app_id):
+                apps.append(app_id)
+        
+        return apps
+    
+    def rename_category(self, old_name: str, new_name: str):
+        """
+        Benenne Kategorie um (für alle Spiele)
+        
+        Args:
+            old_name: Alter Name
+            new_name: Neuer Name
+        """
+        for app_id in self.apps:
+            categories = self.get_app_categories(app_id)
+            if old_name in categories:
+                categories = [new_name if c == old_name else c for c in categories]
+                self.set_app_categories(app_id, categories)
+    
+    def delete_category(self, category: str):
+        """
+        Lösche Kategorie (von allen Spielen)
+        
+        Args:
+            category: Kategorie-Name
+        """
+        for app_id in self.apps:
+            self.remove_app_category(app_id, category)
+    
+    def get_app_data(self, app_id: str) -> Optional[Dict]:
+        """
+        Hole komplette Daten für ein Spiel
+        
+        Args:
+            app_id: Steam App ID
+            
+        Returns:
+            Dict mit Spiel-Daten oder None
+        """
+        return self.apps.get(app_id)
+    
+    def set_app_data(self, app_id: str, data: Dict):
+        """
+        Setze komplette Daten für ein Spiel
+        
+        Args:
+            app_id: Steam App ID
+            data: Dict mit Spiel-Daten
+        """
+        self.apps[app_id] = data
+        self.modified = True
+    
+    def get_uncategorized_apps(self) -> List[str]:
+        """
+        Hole alle Spiele ohne Kategorien
+        
+        Returns:
+            Liste von App IDs
+        """
+        uncategorized = []
+        
+        for app_id in self.apps:
+            categories = self.get_app_categories(app_id)
+            if not categories or categories == ['favorite']:
+                # "favorite" alleine zählt nicht als kategorisiert
+                uncategorized.append(app_id)
+        
+        return uncategorized
+
+
+# Beispiel-Nutzung
+if __name__ == "__main__":
+    from pathlib import Path
+    
+    # Test
+    config_path = Path.home() / '.steam' / 'steam' / 'userdata' / '43925226' / 'config' / 'localconfig.vdf'
+    
+    parser = LocalConfigParser(config_path)
+    
+    if parser.load():
+        print(f"✓ Loaded {len(parser.get_all_app_ids())} games")
+        
+        # Zeige alle Kategorien
+        categories = parser.get_all_categories()
+        print(f"\nFound {len(categories)} categories:")
+        for cat in sorted(categories):
+            apps_in_cat = len(parser.get_apps_by_category(cat))
+            print(f"  • {cat}: {apps_in_cat} games")
+        
+        # Zeige unkategorisierte Spiele
+        uncategorized = parser.get_uncategorized_apps()
+        print(f"\nUncategorized: {len(uncategorized)} games")        
         Args:
             app_id: Steam App ID
             
