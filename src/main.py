@@ -7,7 +7,10 @@ Speichern als: src/main.py
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add project root to path (works from anywhere)
+project_root = Path(__file__).parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 from PyQt6.QtWidgets import QApplication
 from src.config import config
@@ -19,10 +22,10 @@ def main():
     print("=" * 60)
     print("🎮  Steam Library Manager v1.0 (PyQt6)")
     print("=" * 60)
-    
+
     print("🌍 Initializing...")
     init_i18n(config.DEFAULT_LOCALE)
-    
+
     if config.STEAM_PATH:
         print(f"✅ Steam found at: {config.STEAM_PATH}")
         user_ids = config.get_all_user_ids()
@@ -32,21 +35,21 @@ def main():
                 config.STEAM_USER_ID = user_ids[0]
     else:
         print("⚠️  Steam not found")
-    
+
     print("\n🚀 Starting application with PyQt6...\n")
-    
+
     try:
         app = QApplication(sys.argv)
         app.setApplicationName("Steam Library Manager")
-        
+
         # Qt automatically detects and applies system theme (KDE Breeze, GNOME Adwaita, etc.)
         print("✓ Using native Qt theme")
-        
+
         window = MainWindow()
         window.show()
-        
+
         sys.exit(app.exec())
-        
+
     except Exception as e:
         print(f"\n❌ Error: {e}")
         import traceback
