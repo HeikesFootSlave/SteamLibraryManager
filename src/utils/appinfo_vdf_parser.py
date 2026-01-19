@@ -1,16 +1,11 @@
 """
-AppInfo VDF Parser - Based on Steam-Metadata-Editor approach
-Supports Version 27, 28, and 29 with proper checksum calculation
-
+AppInfo VDF Parser - Binary VDF Reader
 Speichern als: src/utils/appinfo_vdf_parser.py
 """
 
 import struct
-import hashlib
 from pathlib import Path
-from typing import Dict, Any, BinaryIO, Optional, Tuple
-from io import BytesIO
-
+from typing import Dict, Any, BinaryIO
 
 class AppInfoParser:
     """Parser für Steam's appinfo.vdf (Binary VDF Format)"""
@@ -29,8 +24,6 @@ class AppInfoParser:
     MAGIC_V29 = 0x07564429
     SUPPORTED_VERSIONS = [MAGIC_V27, MAGIC_V28, MAGIC_V29]
 
-    UNIVERSE = 0x01
-
     @staticmethod
     def load(file_path: Path) -> Dict[str, Any]:
         """Load appinfo.vdf file"""
@@ -40,67 +33,85 @@ class AppInfoParser:
     @staticmethod
     def _parse_file(f: BinaryIO) -> Dict[str, Any]:
         """Parse entire appinfo file"""
-        apps = {}
         magic = struct.unpack('<I', f.read(4))[0]
-
         if magic not in AppInfoParser.SUPPORTED_VERSIONS:
-            supported_hex = [hex(v) for v in AppInfoParser.SUPPORTED_VERSIONS]
-            raise ValueError(
-                f"Unsupported appinfo.vdf version: {hex(magic)}\n"
-                f"Supported versions: {', '.join(supported_hex)}"
-            )
+            raise ValueError(f"Unsupported AppInfo version: {hex(magic)}")
 
-        version = magic
-        print(f"✓ AppInfo version detected: {hex(version)}")
+        # Skip header (universe version)
+        f.read(4) 
 
-        universe = struct.unpack('<I', f.read(4))[0]
-
-        success_count = 0
-        error_count = 0
-
+        apps = {}
         while True:
-            app_id_bytes = f.read(4)
-            if len(app_id_bytes) < 4:
-                break
-            app_id = struct.unpack('<I', app_id_bytes)[0]
+            app_id = struct.unpack('<I', f.read(4))[0]
             if app_id == 0:
                 break
 
-            app_data = AppInfoParser._parse_app_entry_safe(f, version, app_id)
-            if app_data:
-                apps[str(app_id)] = app_data
-                success_count += 1
-            else:
-                error_count += 1
+            # Size
+            _ = struct.unpack('<I', f.read(4))[0]
+            
+            # Info state
+            _ = struct.unpack('<I', f.read(4))[0]
+            
+            # Last updated
+            _ = struct.unpack('<I', f.read(4))[0]
+            
+            # Token
+            _ = struct.unpack('<Q', f.read(8))[0]
+            
+            # SHA1
+            f.read(20)
+            
+            # Change number
+            _ = struct.unpack('<I', f.read(4))[0]
 
-        if error_count > 0:
-            print(f"✓ Loaded appinfo.vdf: {success_count} apps parsed, {error_count} failed")
-        else:
-            print(f"✓ Loaded appinfo.vdf: {success_count} apps parsed successfully")
+            # Binary VDF Data
+            app_data = AppInfoParser._read_binary_vdf(f)
+            apps[str(app_id)] = app_data
 
         return apps
 
     @staticmethod
-    def _parse_app_entry_safe(f: BinaryIO, version: int, app_id: int) -> Optional[Dict]:
-        """Parse app entry with error handling"""
-        start_pos = f.tell()
+    def _read_binary_vdf(f: BinaryIO) -> Dict[str, Any]:
+        """Read a single VDF object"""
+        data = {}
+        while True:
+            type_byte = f.read(1)
+            if not type_byte or type_byte == b'\x08': # End struct
+                break
+            
+            type_id = ord(type_byte)
+            key = AppInfoParser._read_string(f)
+            
+            if type_id == AppInfoParser.TYPE_NONE:
+                data[key] = AppInfoParser._read_binary_vdf(f)
+            elif type_id == AppInfoParser.TYPE_STRING:
+                data[key] = AppInfoParser._read_string(f)
+            elif type_id == AppInfoParser.TYPE_INT32:
+                data[key] = struct.unpack('<i', f.read(4))[0]
+            elif type_id == AppInfoParser.TYPE_UINT64:
+                data[key] = struct.unpack('<Q', f.read(8))[0]
+            elif type_id == AppInfoParser.TYPE_INT64:
+                data[key] = struct.unpack('<q', f.read(8))[0]
+            
+        return data
 
-        try:
-            size = struct.unpack('<I', f.read(4))[0]
-            info_state = struct.unpack('<I', f.read(4))[0]
-            last_updated = struct.unpack('<I', f.read(4))[0]
-            access_token = struct.unpack('<Q', f.read(8))[0]
-            sha_hash = f.read(20)
+    @staticmethod
+    def _read_string(f: BinaryIO) -> str:
+        """Read null-terminated string"""
+        chars = []
+        while True:
+            c = f.read(1)
+            if c == b'\x00':
+                break
+            chars.append(c)
+        return b"".join(chars).decode('utf-8', errors='replace')
 
-            # V28/29: Additional binary data hash BEFORE change_number
-            if version >= AppInfoParser.MAGIC_V28:
-                binary_data_hash = f.read(20)
-
-            change_number = struct.unpack('<I', f.read(4))[0]
-
-            # Parse VDF data
-            section_data = AppInfoParser._parse_section(f)
-
+    @staticmethod
+    def dump(data: Dict, file_path: Path) -> bool:
+        """Dump not supported for binary format yet"""
+        # Writing binary VDF with correct checksums is complex
+        # We only support reading for metadata extraction
+        return False
             return section_data
 
         except Exception as e:
