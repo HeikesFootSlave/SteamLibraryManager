@@ -12,7 +12,8 @@
       "filtered_count": "{filtered} von {total} Spielen angezeigt",
       "search_placeholder": "Spiele durchsuchen...",
       "expand_all": "Alle ausklappen",
-      "collapse_all": "Alle einklappen"
+      "collapse_all": "Alle einklappen",
+      "user_label": "Benutzer: {user_id}"
     },
     "menu": {
       "file": "Datei",
@@ -20,6 +21,7 @@
       "view": "Ansicht",
       "tools": "Werkzeuge",
       "help": "Hilfe",
+      "metadata": "Metadaten",
       "login": "Bei Steam anmelden",
       "logout": "Abmelden",
       "settings": "Einstellungen",
@@ -33,6 +35,8 @@
       "refresh": "Aktualisieren",
       "add_category": "Kategorie hinzufügen",
       "edit_metadata": "Metadaten bearbeiten",
+      "bulk_edit": "Mehrfach Editierung von Metadaten",
+      "restore_changes": "Metadaten zurücksetzen",
       "auto_categorize": "Auto-Kategorisierung",
       "filter": "Filter",
       "sort": "Sortieren",
@@ -67,9 +71,15 @@
         "proton_rating": "Proton"
       },
       "context_menu": {
+        "view_details": "Details anzeigen",
+        "toggle_favorite": "Favorit ja/nein",
+        "open_store": "Im Steam Store öffnen",
         "add_to_category": "Zu Kategorie hinzufügen",
         "remove_from_category": "Aus Kategorie entfernen",
         "edit_metadata": "Metadaten bearbeiten",
+        "rename": "Kategorie umbenennen",
+        "delete": "Kategorie löschen",
+        "auto_categorize": "Kategorie Auto-Kategorisieren",
         "view_store": "Im Steam Store ansehen",
         "hide": "Spiel verstecken",
         "unhide": "Spiel einblenden",
@@ -81,6 +91,7 @@
     "game_details": {
       "title": "Spiel-Details",
       "bulk_edit": "Bulk-Bearbeitung: {count} Spiele",
+      "app_id": "Spiele ID",
       "name": "Name",
       "developer": "Entwickler",
       "publisher": "Publisher",
@@ -131,6 +142,7 @@
       "step_create": "Kategorien aus Tags erstellen",
       "step_move": "Spiele in Kategorien verschieben",
       "estimated_time": "Geschätzte Zeit: ~{seconds} Sekunden",
+      "processing": "Verarbeite {current}/{total}",
       "start": "Starten",
       "cancel": "Abbrechen",
       "progress": "Fortschritt: {current}/{total}",
