@@ -1,6 +1,5 @@
 """
 AppInfo Manager - Verwaltet appinfo.vdf Metadaten
-
 Speichern als: src/core/appinfo_manager.py
 """
 
@@ -40,11 +39,11 @@ class AppInfoManager:
                 json.dump(self.modifications, f, indent=2)
             print(t('logs.appinfo.saved_mods', count=len(self.modifications)))
         except Exception as e:
-            print(f"Error saving modifications: {e}")
+            print(t('logs.appinfo.save_error', error=e))
     
     def load_appinfo(self) -> Dict:
         if not self.appinfo_path.exists():
-            print(t('logs.parser.file_not_found', path=self.appinfo_path))
+            print(t('logs.appinfo.file_not_found', path=self.appinfo_path))
             return {}
         try:
             from src.utils.vdf_wrapper import AppInfoVDF
@@ -52,7 +51,7 @@ class AppInfoManager:
             print(t('logs.appinfo.vdf_loaded', count=len(data)))
             return data
         except Exception as e:
-            print(f"Error loading appinfo.vdf: {e}")
+            print(t('logs.appinfo.vdf_load_error', error=e))
             import traceback
             traceback.print_exc()
             return {}
@@ -68,7 +67,7 @@ class AppInfoManager:
             else:
                 return False
         except Exception as e:
-            print(f"Error saving appinfo.vdf: {e}")
+            print(t('logs.appinfo.vdf_save_error', error=e))
             import traceback
             traceback.print_exc()
             return False
@@ -80,10 +79,10 @@ class AppInfoManager:
         backup_path = self.backup_dir / f'appinfo_backup_{timestamp}.vdf'
         try:
             shutil.copy2(self.appinfo_path, backup_path)
-            print(t('ui.dialogs.backup_created', path=backup_path.name))
+            print(t('logs.appinfo.backup_created', path=backup_path.name))
             self._cleanup_old_backups()
         except Exception as e:
-            print(t('ui.dialogs.backup_failed', error=e))
+            print(t('logs.appinfo.backup_error', name="create", error=e))
     
     def _cleanup_old_backups(self):
         backups = sorted(self.backup_dir.glob('appinfo_backup_*.vdf'))
@@ -153,7 +152,7 @@ class AppInfoManager:
             self._save_modifications()
             return True
         except Exception as e:
-            print(f"Error setting metadata for {app_id}: {e}")
+            print(t('logs.appinfo.set_error', app_id=app_id, error=e))
             return False
     
     def bulk_set_metadata(self, app_ids: List[str], data: Dict, metadata: Dict) -> int:
@@ -167,7 +166,7 @@ class AppInfoManager:
         if not self.modifications:
             print(t('logs.appinfo.no_restore'))
             return 0
-        print(f"Restoring {len(self.modifications)} modifications...")
+        print(t('logs.appinfo.restoring', count=len(self.modifications)))
         restored = 0
         for app_id, mod in self.modifications.items():
             if self.set_app_metadata(app_id, data, mod['modified']):
@@ -177,7 +176,7 @@ class AppInfoManager:
     
     def revert_app(self, app_id: str, data: Dict) -> bool:
         if app_id not in self.modifications:
-            print(f"No modifications found for app {app_id}")
+            print(t('logs.appinfo.no_mods_app', app_id=app_id))
             return False
         original = self.modifications[app_id]['original']
         if self.set_app_metadata(app_id, data, original):
@@ -196,99 +195,4 @@ class AppInfoManager:
     def clear_all_modifications(self):
         self.modifications = {}
         self._save_modifications()
-        print(t('logs.appinfo.cleared'))            'name': common.get('name', ''),
-            'developer': common.get('developer', ''),
-            'publisher': common.get('publisher', ''),
-            'release_date': common.get('steam_release_date', ''),
-            'sort_as': common.get('sort_as', ''),
-            'app_id': app_id,
-        }
-    
-    def set_app_metadata(self, app_id: str, data: Dict, metadata: Dict) -> bool:
-        if app_id not in data:
-            print(f"App {app_id} not found in appinfo")
-            return False
-        try:
-            if 'appinfo' not in data[app_id]:
-                data[app_id]['appinfo'] = {}
-            if 'common' not in data[app_id]['appinfo']:
-                data[app_id]['appinfo']['common'] = {}
-            
-            common = data[app_id]['appinfo']['common']
-            original = {
-                'name': common.get('name'),
-                'developer': common.get('developer'),
-                'publisher': common.get('publisher'),
-                'release_date': common.get('steam_release_date'),
-                'sort_as': common.get('sort_as'),
-            }
-            
-            if 'name' in metadata and metadata['name']:
-                common['name'] = metadata['name']
-                if 'sort_as' not in metadata or not metadata['sort_as']:
-                    common['sort_as'] = metadata['name']
-            
-            if 'developer' in metadata and metadata['developer']:
-                common['developer'] = metadata['developer']
-            
-            if 'publisher' in metadata and metadata['publisher']:
-                common['publisher'] = metadata['publisher']
-            
-            if 'release_date' in metadata and metadata['release_date']:
-                common['steam_release_date'] = metadata['release_date']
-            
-            if 'sort_as' in metadata and metadata['sort_as']:
-                common['sort_as'] = metadata['sort_as']
-            
-            self.modifications[app_id] = {
-                'original': original,
-                'modified': metadata,
-                'timestamp': datetime.now().isoformat()
-            }
-            self._save_modifications()
-            return True
-        except Exception as e:
-            print(f"Error setting metadata for {app_id}: {e}")
-            return False
-    
-    def bulk_set_metadata(self, app_ids: List[str], data: Dict, metadata: Dict) -> int:
-        success_count = 0
-        for app_id in app_ids:
-            if self.set_app_metadata(app_id, data, metadata):
-                success_count += 1
-        return success_count
-    
-    def restore_modifications(self, data: Dict) -> int:
-        if not self.modifications:
-            print("No modifications to restore")
-            return 0
-        print(f"Restoring {len(self.modifications)} modifications...")
-        restored = 0
-        for app_id, mod in self.modifications.items():
-            if self.set_app_metadata(app_id, data, mod['modified']):
-                restored += 1
-        print(f"✓ Restored {restored} modifications")
-        return restored
-    
-    def revert_app(self, app_id: str, data: Dict) -> bool:
-        if app_id not in self.modifications:
-            print(f"No modifications found for app {app_id}")
-            return False
-        original = self.modifications[app_id]['original']
-        if self.set_app_metadata(app_id, data, original):
-            del self.modifications[app_id]
-            self._save_modifications()
-            print(f"✓ Reverted app {app_id} to original")
-            return True
-        return False
-    
-    def get_modification_count(self) -> int:
-        return len(self.modifications)
-    
-    def get_modified_apps(self) -> List[str]:
-        return list(self.modifications.keys())
-    
-    def clear_all_modifications(self):
-        self.modifications = {}
-        self._save_modifications()
-        print("✓ Cleared all modification records")
+        print(t('logs.appinfo.cleared'))
