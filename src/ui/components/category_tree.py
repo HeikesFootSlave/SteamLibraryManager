@@ -1,237 +1,227 @@
-"""Category Tree - MIT Spielen drin! Virtualisiert für Performance"""
-import customtkinter as ctk
+"""
+Category Tree - PyQt6 Version mit Spielen drin! Virtualisiert für Performance
+
+Speichern als: src/ui/components/category_tree.py
+"""
+
+from PyQt6.QtWidgets import (
+    QTreeWidget, QTreeWidgetItem, QWidget, QVBoxLayout,
+    QHBoxLayout, QLabel, QPushButton, QFrame
+)
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QFont
 from typing import Optional, Callable, List, Dict
 from src.utils.i18n import t
 
 
-class GameItem(ctk.CTkFrame):
-    """Ein Spiel-Item (lightweight)"""
-    
-    def __init__(self, parent, game, on_click: Optional[Callable] = None,
-                 on_right_click: Optional[Callable] = None):
-        super().__init__(parent, fg_color="transparent", height=25)
-        self.pack_propagate(False)
-        self.game = game
-        
-        # Name
-        name_label = ctk.CTkLabel(
-            self, text=f"  • {game.name}", 
-            anchor="w", width=250
-        )
-        name_label.pack(side="left", padx=5)
-        
-        # Playtime
-        playtime = f"{game.playtime_hours}h" if game.playtime_hours > 0 else ""
-        if playtime:
-            time_label = ctk.CTkLabel(self, text=playtime, width=50)
-            time_label.pack(side="left", padx=5)
-        
-        # Favorite indicator
-        if game.is_favorite():
-            fav_label = ctk.CTkLabel(self, text="⭐", width=20)
-            fav_label.pack(side="left")
-        
-        # Click
-        self.bind("<Button-1>", lambda e: on_click(game) if on_click else None)
-        name_label.bind("<Button-1>", lambda e: on_click(game) if on_click else None)
-        
-        # Right-click
-        self.bind("<Button-3>", lambda e: on_right_click(game, e) if on_right_click else None)
-        name_label.bind("<Button-3>", lambda e: on_right_click(game, e) if on_right_click else None)
-        
-        # Hover
-        self.bind("<Enter>", lambda e: self.configure(fg_color=("gray85", "gray20")))
-        self.bind("<Leave>", lambda e: self.configure(fg_color="transparent"))
+class GameTreeWidget(QTreeWidget):
+    """Tree Widget mit Multi-Select und Spielen"""
+
+    game_clicked = pyqtSignal(object)
+    game_right_clicked = pyqtSignal(object, object)
+    category_right_clicked = pyqtSignal(str, object)
+    selection_changed = pyqtSignal(list)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setHeaderHidden(True)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._on_context_menu)
+        self.itemClicked.connect(self._on_item_clicked)
+        self.setSelectionMode(QTreeWidget.SelectionMode.ExtendedSelection)
+        self.itemSelectionChanged.connect(self._on_selection_changed)
+        self.setAlternatingRowColors(True)
+        self.setAnimated(True)
+
+        # Styling
+        self.setStyleSheet("""
+            QTreeWidget {
+                border: 1px solid palette(mid);
+                border-radius: 4px;
+            }
+            QTreeWidget::item {
+                padding: 4px;
+            }
+            QTreeWidget::item:hover {
+                background-color: palette(light);
+            }
+            QTreeWidget::item:selected {
+                background-color: palette(highlight);
+                color: palette(highlighted-text);
+            }
+        """)
+
+    def _on_selection_changed(self):
+        """Handle selection changes"""
+        selected_items = self.selectedItems()
+        selected_games = []
+        for item in selected_items:
+            game = item.data(0, Qt.ItemDataRole.UserRole)
+            if game and hasattr(game, 'app_id'):  # It's a Game object
+                selected_games.append(game)
+        self.selection_changed.emit(selected_games)
+
+    def _on_item_clicked(self, item, column):
+        """Handle item click"""
+        game = item.data(0, Qt.ItemDataRole.UserRole)
+        if game and hasattr(game, 'app_id'):  # It's a Game object
+            self.game_clicked.emit(game)
+
+    def _on_context_menu(self, pos):
+        """Handle right-click context menu"""
+        item = self.itemAt(pos)
+        if not item:
+            return
+
+        game = item.data(0, Qt.ItemDataRole.UserRole)
+        category = item.data(0, Qt.ItemDataRole.UserRole + 1)
+        global_pos = self.viewport().mapToGlobal(pos)
+
+        if game and hasattr(game, 'app_id'):
+            self.game_right_clicked.emit(game, global_pos)
+        elif category:
+            self.category_right_clicked.emit(category, global_pos)
+
+    def populate_categories(self, categories_data: Dict[str, List]):
+        """
+        Populate tree with categories and games
+
+        Args:
+            categories_data: Dict[category_name, List[Game]]
+        """
+        self.clear()
+
+        for category_name, games in categories_data.items():
+            # Create category item
+            category_item = QTreeWidgetItem(self, [f"📁 {category_name} ({len(games)})"])
+            category_item.setData(0, Qt.ItemDataRole.UserRole + 1, category_name)
+
+            # Style category
+            font = category_item.font(0)
+            font.setBold(True)
+            font.setPointSize(11)
+            category_item.setFont(0, font)
+
+            # Add games (limit to first 100 for performance)
+            display_limit = 100
+            for game in games[:display_limit]:
+                game_text = f"  • {game.name}"
+                if game.playtime_hours > 0:
+                    game_text += f" ({game.playtime_hours}h)"
+                if game.is_favorite():
+                    game_text += " ⭐"
+
+                game_item = QTreeWidgetItem(category_item, [game_text])
+                game_item.setData(0, Qt.ItemDataRole.UserRole, game)
+
+                # Style game item
+                game_font = game_item.font(0)
+                game_font.setPointSize(10)
+                game_item.setFont(0, game_font)
+
+            # Show "... and X more" if there are more games
+            if len(games) > display_limit:
+                more_text = f"  ... and {len(games) - display_limit} more games"
+                more_item = QTreeWidgetItem(category_item, [more_text])
+                more_font = more_item.font(0)
+                more_font.setItalic(True)
+                more_font.setPointSize(9)
+                more_item.setFont(0, more_font)
+                more_item.setForeground(0, Qt.GlobalColor.gray)
+
+    def expand_all_categories(self):
+        """Expand all category items"""
+        self.expandAll()
+
+    def collapse_all_categories(self):
+        """Collapse all category items"""
+        self.collapseAll()
 
 
-class CategoryItem(ctk.CTkFrame):
-    """Kategorie mit ausklappbaren Spielen"""
-    
-    def __init__(self, parent, name: str, icon: str, games: List,
-                 on_game_click: Optional[Callable] = None,
+class CategoryTreeWithGames(QWidget):
+    """
+    Category Tree Widget mit Header und Expand/Collapse Buttons
+
+    DEPRECATED: Use GameTreeWidget directly instead!
+    This class is kept for backwards compatibility only.
+    """
+
+    def __init__(self, parent=None, on_game_click: Optional[Callable] = None,
                  on_game_right_click: Optional[Callable] = None,
                  on_category_right_click: Optional[Callable] = None):
-        super().__init__(parent, fg_color="transparent")
-        
-        self.name = name
-        self.games = games
-        self.on_game_click = on_game_click
-        self.on_game_right_click = on_game_right_click
-        self.on_category_right_click = on_category_right_click
-        self.is_expanded = False
-        self.game_widgets: List[GameItem] = []
-        
+        super().__init__(parent)
+
+        # Create layout
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(5)
+
         # Header
-        self.header = ctk.CTkFrame(self, fg_color="transparent", height=30)
-        self.header.pack(fill="x")
-        self.header.pack_propagate(False)
-        
-        # Expand button
-        self.expand_btn = ctk.CTkButton(
-            self.header, text="▶", width=25, height=25,
-            fg_color="transparent",
-            hover_color=("gray80", "gray25"),
-            command=self.toggle
-        )
-        self.expand_btn.pack(side="left", padx=2)
-        
-        # Label
-        label_text = f"{icon} {name} ({len(games)})"
-        self.label = ctk.CTkLabel(
-            self.header, text=label_text, 
-            anchor="w", font=ctk.CTkFont(size=12, weight="bold")
-        )
-        self.label.pack(side="left", fill="x", expand=True, padx=5)
-        
-        # Right-click on category
-        self.header.bind("<Button-3>", lambda e: self._on_right_click(e))
-        self.label.bind("<Button-3>", lambda e: self._on_right_click(e))
-        
-        # Games container (hidden initially)
-        self.games_container = ctk.CTkFrame(self, fg_color="transparent")
-    
-    def _on_right_click(self, event):
-        """Handle right-click on category"""
-        if self.on_category_right_click:
-            self.on_category_right_click(self.name, event)
-    
-    def toggle(self):
-        """Toggle expand/collapse"""
-        if self.is_expanded:
-            self.collapse()
-        else:
-            self.expand()
-    
-    def expand(self):
-        """Klappe Spiele aus"""
-        if self.is_expanded:
-            return
-        
-        self.is_expanded = True
-        self.expand_btn.configure(text="▼")
-        
-        # Show container
-        self.games_container.pack(fill="x", padx=(20, 0))
-        
-        # Add games (virtualized - nur erste 100)
-        display_games = self.games[:100]  # Limit für Performance
-        
-        for game in display_games:
-            item = GameItem(self.games_container, game, self.on_game_click, 
-                          self.on_game_right_click)
-            item.pack(fill="x", pady=1)
-            self.game_widgets.append(item)
-        
-        # Show "... and X more" wenn mehr als 100
-        if len(self.games) > 100:
-            more_label = ctk.CTkLabel(
-                self.games_container,
-                text=f"  ... and {len(self.games) - 100} more games",
-                text_color=("gray50", "gray50"),
-                font=ctk.CTkFont(size=10, slant="italic")
-            )
-            more_label.pack(pady=5)
-    
-    def collapse(self):
-        """Klappe Spiele ein"""
-        if not self.is_expanded:
-            return
-        
-        self.is_expanded = False
-        self.expand_btn.configure(text="▶")
-        
-        # Remove all game widgets
-        for widget in self.game_widgets:
-            widget.destroy()
-        self.game_widgets.clear()
-        
-        # Hide container
-        self.games_container.pack_forget()
+        header = QFrame()
+        header.setFrameShape(QFrame.Shape.StyledPanel)
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(10, 5, 10, 5)
 
+        # Title
+        title = QLabel(t('ui.categories.title'))
+        title_font = QFont()
+        title_font.setPointSize(13)
+        title_font.setBold(True)
+        title.setFont(title_font)
+        header_layout.addWidget(title)
 
-class CategoryTreeWithGames(ctk.CTkScrollableFrame):
-    """Category Tree mit Spielen - Neue Version!"""
-    
-    def __init__(self, parent, on_game_click: Optional[Callable] = None,
-                 on_game_right_click: Optional[Callable] = None,
-                 on_category_right_click: Optional[Callable] = None):
-        super().__init__(parent, fg_color=("gray90", "gray15"))
-        
-        self.on_game_click = on_game_click
-        self.on_game_right_click = on_game_right_click
-        self.on_category_right_click = on_category_right_click
-        self.categories: Dict[str, CategoryItem] = {}
-        
-        # Header mit +/- Buttons
-        header = ctk.CTkFrame(self, fg_color="transparent")
-        header.pack(fill="x", padx=5, pady=5)
-        
-        title = ctk.CTkLabel(
-            header, 
-            text=t('ui.categories.title') + " (ALL)",
-            font=ctk.CTkFont(size=13, weight="bold")
-        )
-        title.pack(side="left")
-        
-        # Expand/Collapse All buttons
-        btn_frame = ctk.CTkFrame(header, fg_color="transparent")
-        btn_frame.pack(side="right")
-        
-        expand_all_btn = ctk.CTkButton(
-            btn_frame, text="[+]", width=30, height=24,
-            fg_color="transparent",
-            hover_color=("gray80", "gray25"),
-            command=self.expand_all
-        )
-        expand_all_btn.pack(side="left", padx=2)
-        
-        collapse_all_btn = ctk.CTkButton(
-            btn_frame, text="[−]", width=30, height=24,
-            fg_color="transparent",
-            hover_color=("gray80", "gray25"),
-            command=self.collapse_all
-        )
-        collapse_all_btn.pack(side="left", padx=2)
-        
-        # Separator
-        sep = ctk.CTkFrame(self, height=2, fg_color=("gray70", "gray30"))
-        sep.pack(fill="x", padx=5, pady=(0, 5))
-    
+        header_layout.addStretch()
+
+        # Expand/Collapse buttons
+        expand_btn = QPushButton("[+]")
+        expand_btn.setToolTip(t('ui.main.expand_all'))
+        expand_btn.setMaximumWidth(40)
+        expand_btn.clicked.connect(self._expand_all)
+        header_layout.addWidget(expand_btn)
+
+        collapse_btn = QPushButton("[−]")
+        collapse_btn.setToolTip(t('ui.main.collapse_all'))
+        collapse_btn.setMaximumWidth(40)
+        collapse_btn.clicked.connect(self._collapse_all)
+        header_layout.addWidget(collapse_btn)
+
+        layout.addWidget(header)
+
+        # Tree widget
+        self.tree = GameTreeWidget()
+        if on_game_click:
+            self.tree.game_clicked.connect(on_game_click)
+        if on_game_right_click:
+            self.tree.game_right_clicked.connect(on_game_right_click)
+        if on_category_right_click:
+            self.tree.category_right_clicked.connect(on_category_right_click)
+
+        layout.addWidget(self.tree)
+
+    def _expand_all(self):
+        """Expand all categories"""
+        self.tree.expand_all_categories()
+
+    def _collapse_all(self):
+        """Collapse all categories"""
+        self.tree.collapse_all_categories()
+
     def add_category(self, name: str, icon: str, games: List):
         """
-        Füge Kategorie mit Spielen hinzu
-        
+        Add category with games (deprecated - use populate_categories instead)
+
         Args:
-            name: Kategorie-Name
-            icon: Icon (Emoji)
-            games: Liste von Game-Objekten
+            name: Category name
+            icon: Icon (emoji)
+            games: List of Game objects
         """
-        item = CategoryItem(self, name, icon, games, self.on_game_click,
-                          self.on_game_right_click, self.on_category_right_click)
-        item.pack(fill="x", pady=2, padx=5)
-        self.categories[name] = item
-    
-    def expand_all(self):
-        """Klappe alle Kategorien aus"""
-        for cat in self.categories.values():
-            if not cat.is_expanded:
-                cat.expand()
-    
-    def collapse_all(self):
-        """Klappe alle Kategorien ein"""
-        for cat in self.categories.values():
-            if cat.is_expanded:
-                cat.collapse()
-    
+        categories_data = {f"{icon} {name}": games}
+        self.tree.populate_categories(categories_data)
+
     def clear(self):
-        """Lösche alle Kategorien"""
-        for cat in self.categories.values():
-            cat.destroy()
-        self.categories.clear()
-    
-    def filter_games(self, query: str):
-        """
-        Filtere Spiele nach Suchbegriff
-        TODO: Implementieren
-        """
-        pass
+        """Clear all categories"""
+        self.tree.clear()
+
+    def populate_categories(self, categories_data: Dict[str, List]):
+        """Populate with categories"""
+        self.tree.populate_categories(categories_data)

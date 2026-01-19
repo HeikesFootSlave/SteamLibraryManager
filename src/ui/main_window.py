@@ -7,12 +7,11 @@ Speichern als: src/ui/main_window.py
 
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QTreeWidget, QTreeWidgetItem, QLineEdit, QPushButton,
-    QLabel, QToolBar, QMenu, QMenuBar, QMessageBox, QInputDialog,
-    QSplitter, QScrollArea, QCheckBox, QFrame, QProgressDialog,
-    QApplication
+    QLineEdit, QPushButton, QLabel, QToolBar, QMenu,
+    QMessageBox, QInputDialog, QSplitter, QScrollArea,
+    QCheckBox, QFrame, QProgressDialog, QApplication
 )
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction, QFont
 from typing import Optional, List, Dict
 from pathlib import Path
@@ -29,72 +28,8 @@ from src.ui.metadata_dialogs import (
     BulkMetadataEditDialog,
     MetadataRestoreDialog
 )
+from src.ui.components.category_tree import GameTreeWidget  # ← Import from category_tree!
 from src.utils.i18n import t
-
-
-class GameTreeWidget(QTreeWidget):
-    """Tree Widget mit Multi-Select"""
-    
-    game_clicked = pyqtSignal(object)
-    game_right_clicked = pyqtSignal(object, object)
-    category_right_clicked = pyqtSignal(str, object)
-    selection_changed = pyqtSignal(list)
-    
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setHeaderHidden(True)
-        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.customContextMenuRequested.connect(self._on_context_menu)
-        self.itemClicked.connect(self._on_item_clicked)
-        self.setSelectionMode(QTreeWidget.SelectionMode.ExtendedSelection)
-        self.itemSelectionChanged.connect(self._on_selection_changed)
-        self.setAlternatingRowColors(True)
-        self.setAnimated(True)
-    
-    def _on_selection_changed(self):
-        selected_items = self.selectedItems()
-        selected_games = []
-        for item in selected_items:
-            game = item.data(0, Qt.ItemDataRole.UserRole)
-            if game and isinstance(game, Game):
-                selected_games.append(game)
-        self.selection_changed.emit(selected_games)
-    
-    def _on_item_clicked(self, item, column):
-        game = item.data(0, Qt.ItemDataRole.UserRole)
-        if game and isinstance(game, Game):
-            self.game_clicked.emit(game)
-    
-    def _on_context_menu(self, pos):
-        item = self.itemAt(pos)
-        if not item:
-            return
-        game = item.data(0, Qt.ItemDataRole.UserRole)
-        category = item.data(0, Qt.ItemDataRole.UserRole + 1)
-        global_pos = self.viewport().mapToGlobal(pos)
-        if game:
-            self.game_right_clicked.emit(game, global_pos)
-        elif category:
-            self.category_right_clicked.emit(category, global_pos)
-    
-    def populate_categories(self, categories_data: Dict[str, List[Game]]):
-        self.clear()
-        for category_name, games in categories_data.items():
-            category_item = QTreeWidgetItem(self, [f"{category_name} ({len(games)})"])
-            category_item.setData(0, Qt.ItemDataRole.UserRole + 1, category_name)
-            font = category_item.font(0)
-            font.setBold(True)
-            category_item.setFont(0, font)
-            for game in games[:100]:
-                game_text = f"  • {game.name}"
-                if game.playtime_hours > 0:
-                    game_text += f" ({game.playtime_hours}h)"
-                if game.is_favorite():
-                    game_text += " ⭐"
-                game_item = QTreeWidgetItem(category_item, [game_text])
-                game_item.setData(0, Qt.ItemDataRole.UserRole, game)
-            if len(games) > 100:
-                more_item = QTreeWidgetItem(category_item, [f"  ... and {len(games) - 100} more"])
 
 
 class MainWindow(QMainWindow):
@@ -102,7 +37,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle(t('ui.main.title'))
         self.resize(1400, 800)
-        
+
         # Data
         self.game_manager: Optional[GameManager] = None
         self.vdf_parser: Optional[LocalConfigParser] = None
@@ -111,35 +46,35 @@ class MainWindow(QMainWindow):
         self.appinfo_manager: Optional[AppInfoManager] = None
         self.appinfo_data: Optional[Dict] = None
         self.selected_games: List[Game] = []
-        
+
         self._create_ui()
         self._load_data()
-    
+
     def _create_ui(self):
         """Erstelle UI mit Menü"""
         # === MENÜBAR ===
         menubar = self.menuBar()
-        
+
         # File Menu
         file_menu = menubar.addMenu(t('ui.menu.file'))
         file_menu.addAction(QAction(t('ui.menu.refresh'), self, triggered=self.refresh_data))
         file_menu.addSeparator()
         file_menu.addAction(QAction(t('ui.menu.exit'), self, triggered=self.close))
-        
+
         # Tools Menu
-        tools_menu = menubar.addMenu(t('ui.toolbar.metadata'))
-        tools_menu.addAction(QAction(f"✏️ {t('ui.toolbar.bulk_edit')}", self, triggered=self.bulk_edit_metadata))
-        tools_menu.addAction(QAction(f"🔄 {t('ui.toolbar.restore_changes')}", self, triggered=self.restore_metadata_changes))
-        
+        tools_menu = menubar.addMenu(t('ui.menu.metadata'))
+        tools_menu.addAction(QAction(f"✏️ {t('ui.metadata_editor.bulk_title').split(' - ')[0]}", self, triggered=self.bulk_edit_metadata))
+        tools_menu.addAction(QAction(f"🔄 Restore Metadata", self, triggered=self.restore_metadata_changes))
+
         # Help Menu
         help_menu = menubar.addMenu(t('ui.menu.help'))
         help_menu.addAction(QAction(t('ui.menu.settings'), self, triggered=self.show_settings))
-        
+
         # User Label in Menübar (rechts)
         self.user_label = QLabel(t('ui.status.not_logged_in'))
         self.user_label.setStyleSheet("padding: 5px 10px;")
         menubar.setCornerWidget(self.user_label, Qt.Corner.TopRightCorner)
-        
+
         # === TOOLBAR ===
         toolbar = QToolBar()
         self.addToolBar(toolbar)
@@ -147,20 +82,20 @@ class MainWindow(QMainWindow):
         toolbar.addAction(f"🏷️ {t('ui.toolbar.auto_categorize')}", self.auto_categorize)
         toolbar.addSeparator()
         toolbar.addAction(f"⚙️ {t('ui.toolbar.settings')}", self.show_settings)
-        
+
         # === MAIN CONTENT ===
         central = QWidget()
         self.setCentralWidget(central)
         layout = QVBoxLayout(central)
         layout.setContentsMargins(5, 5, 5, 5)
-        
+
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        
+
         # === LEFT: Categories + Games ===
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         # Search
         search_layout = QHBoxLayout()
         search_layout.addWidget(QLabel("🔍"))
@@ -173,84 +108,84 @@ class MainWindow(QMainWindow):
         clear_btn.setMaximumWidth(30)
         search_layout.addWidget(clear_btn)
         left_layout.addLayout(search_layout)
-        
-        # Tree
+
+        # Tree (imported from category_tree.py!)
         self.tree = GameTreeWidget()
         self.tree.game_clicked.connect(self.on_game_selected)
         self.tree.game_right_clicked.connect(self.on_game_right_click)
         self.tree.category_right_clicked.connect(self.on_category_right_click)
         self.tree.selection_changed.connect(self._on_games_selected)
         left_layout.addWidget(self.tree)
-        
+
         splitter.addWidget(left_widget)
-        
+
         # === RIGHT: Game Details ===
         right_widget = QWidget()
         right_layout = QVBoxLayout(right_widget)
         right_layout.setContentsMargins(10, 10, 10, 10)
-        
+
         self.details_title = QLabel(t('ui.game_details.title'))
         self.details_title.setFont(QFont("Arial", 16, QFont.Weight.Bold))
         right_layout.addWidget(self.details_title)
-        
+
         self.details_scroll = QScrollArea()
         self.details_scroll.setWidgetResizable(True)
         self.details_content = QWidget()
         self.details_layout = QVBoxLayout(self.details_content)
         self.details_scroll.setWidget(self.details_content)
         right_layout.addWidget(self.details_scroll)
-        
+
         self.details_placeholder = QLabel("Select a game to view details")
         self.details_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.details_layout.addWidget(self.details_placeholder)
-        
+
         splitter.addWidget(right_widget)
         splitter.setSizes([450, 950])
         layout.addWidget(splitter)
-        
+
         # === STATUSBAR ===
         self.statusbar = self.statusBar()
         self.set_status(t('ui.status.ready'))
-    
+
     def _load_data(self):
         """Lade Daten"""
         self.set_status(t('ui.status.loading'))
-        
+
         if not config.STEAM_PATH:
-            QMessageBox.warning(self, t('ui.dialogs.error'), t('ui.errors.steam_not_found'))
+            QMessageBox.warning(self, t('ui.dialogs.error'), t('errors.steam_not_found'))
             return
-        
+
         user_ids = config.get_all_user_ids()
         if not user_ids:
-            QMessageBox.warning(self, t('ui.dialogs.error'), t('ui.errors.no_users'))
+            QMessageBox.warning(self, t('ui.dialogs.error'), "No Steam users found!")
             return
-        
+
         account_id = user_ids[0]
         steam_id64 = config.STEAM_USER_ID if config.STEAM_USER_ID else account_id
-        self.user_label.setText(t('ui.main.user_label', user_id=account_id))
-        
+        self.user_label.setText(f"User: {account_id}")
+
         config_path = config.get_localconfig_path(account_id)
         if not config_path:
-            QMessageBox.warning(self, t('ui.dialogs.error'), t('ui.errors.localconfig_not_found'))
+            QMessageBox.warning(self, t('ui.dialogs.error'), "localconfig.vdf not found!")
             return
-        
+
         self.vdf_parser = LocalConfigParser(config_path)
         if not self.vdf_parser.load():
-            QMessageBox.warning(self, t('ui.dialogs.error'), t('ui.errors.localconfig_load_error'))
+            QMessageBox.warning(self, t('ui.dialogs.error'), "Could not load localconfig.vdf!")
             return
-        
+
         if not config.STEAM_API_KEY:
-            QMessageBox.warning(self, t('ui.dialogs.error'), t('ui.errors.no_api_key'))
+            QMessageBox.warning(self, t('ui.dialogs.error'), "No Steam API key configured!")
             return
-        
+
         self.game_manager = GameManager(config.STEAM_API_KEY, config.CACHE_DIR)
         if not self.game_manager.load_from_steam_api(steam_id64):
-            QMessageBox.warning(self, t('ui.dialogs.error'), t('ui.errors.api_load_error'))
+            QMessageBox.warning(self, t('ui.dialogs.error'), "Could not load games from Steam API!")
             return
-        
+
         self.game_manager.merge_with_localconfig(self.vdf_parser)
         self.steam_scraper = SteamStoreScraper(config.CACHE_DIR)
-        
+
         # Load metadata
         if config.STEAM_PATH:
             try:
@@ -264,48 +199,48 @@ class MainWindow(QMainWindow):
                 print(f"Error loading AppInfo: {e}")
                 self.appinfo_manager = None
                 self.appinfo_data = None
-        
+
         self._populate_categories()
-        self.set_status(t('ui.status.loaded', count=len(self.game_manager.games)))
-    
+        self.set_status(t('ui.main.games_count', count=len(self.game_manager.games)))
+
     def _populate_categories(self):
         """Fülle Kategorien"""
         if not self.game_manager:
             return
-        
+
         categories_data = {}
         all_games = sorted(self.game_manager.get_all_games(), key=lambda g: g.name.lower())
         categories_data[t('ui.categories.all_games')] = all_games
-        
+
         favorites = sorted(self.game_manager.get_favorites(), key=lambda g: g.name.lower())
         if favorites:
             categories_data[t('ui.categories.favorites')] = favorites
-        
+
         uncat = sorted(self.game_manager.get_uncategorized_games(), key=lambda g: g.name.lower())
         if uncat:
             categories_data[t('ui.categories.uncategorized')] = uncat
-        
+
         cats = self.game_manager.get_all_categories()
         for cat_name in sorted(cats.keys()):
             if cat_name != 'favorite':
                 cat_games = sorted(self.game_manager.get_games_by_category(cat_name), key=lambda g: g.name.lower())
                 categories_data[cat_name] = cat_games
-        
+
         self.tree.populate_categories(categories_data)
-    
+
     def _on_games_selected(self, games: List[Game]):
         """Spiele wurden ausgewählt"""
         self.selected_games = games
         if len(games) > 1:
-            self.set_status(t('ui.status.selected_multiple', count=len(games)))
+            self.set_status(t('ui.main.games_selected', count=len(games)))
         elif len(games) == 1:
-            self.set_status(t('ui.status.selected', name=games[0].name))
-    
+            self.set_status(f"Selected: {games[0].name}")
+
     def on_game_selected(self, game: Game):
         """Spiel wurde geklickt"""
         self.selected_game = game
         self._show_game_details(game)
-    
+
     def _show_game_details(self, game: Game):
         """Zeige Spiel-Details"""
         self.details_placeholder.hide()
@@ -313,21 +248,21 @@ class MainWindow(QMainWindow):
             widget = self.details_layout.itemAt(i).widget()
             if widget and widget != self.details_placeholder:
                 widget.deleteLater()
-        
+
         self.details_title.setText(game.name)
-        
-        self._add_detail(t('ui.game_details.app_id'), game.app_id)
+
+        self._add_detail(t('ui.game_details.name'), game.app_id)
         self._add_detail(t('ui.game_details.playtime'), t('ui.game_details.hours', hours=game.playtime_hours))
         if game.developer:
             self._add_detail(t('ui.game_details.developer'), game.developer)
         if game.publisher:
             self._add_detail(t('ui.game_details.publisher'), game.publisher)
-        
+
         # Categories
         label = QLabel(t('ui.game_details.categories_label'))
         label.setFont(QFont("Arial", 12, QFont.Weight.Bold))
         self.details_layout.addWidget(label)
-        
+
         all_categories = sorted(self.game_manager.get_all_categories().keys())
         for cat in all_categories:
             if cat != 'favorite':
@@ -335,9 +270,9 @@ class MainWindow(QMainWindow):
                 cb.setChecked(game.has_category(cat))
                 cb.stateChanged.connect(lambda state, c=cat, g=game: self.toggle_category(g, c, state))
                 self.details_layout.addWidget(cb)
-        
+
         self.details_layout.addStretch()
-    
+
     def _add_detail(self, label: str, value: str):
         """Detail-Zeile hinzufügen"""
         frame = QFrame()
@@ -351,7 +286,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(val)
         layout.addStretch()
         self.details_layout.addWidget(frame)
-    
+
     def toggle_category(self, game: Game, category: str, state):
         """Toggle Kategorie"""
         if state == Qt.CheckState.Checked.value:
@@ -362,32 +297,32 @@ class MainWindow(QMainWindow):
             if category in game.categories:
                 game.categories.remove(category)
                 self.vdf_parser.remove_app_category(game.app_id, category)
-        
+
         self.vdf_parser.save()
         self._populate_categories()
-        self.set_status(t('ui.status.updated', name=game.name))
-    
+        self.set_status(f"Updated: {game.name}")
+
     def on_game_right_click(self, game: Game, pos):
         """Rechtsklick auf Spiel"""
         menu = QMenu(self)
-        menu.addAction(f"📋 {t('ui.context_menu.view_details')}", lambda: self.on_game_selected(game))
-        menu.addAction(f"⭐ {t('ui.context_menu.toggle_favorite')}", lambda: self.toggle_favorite(game))
-        menu.addAction(f"🌐 {t('ui.context_menu.open_store')}", lambda: self.open_in_store(game))
+        menu.addAction(f"📋 {t('ui.game_list.context_menu.edit_metadata')}", lambda: self.on_game_selected(game))
+        menu.addAction(f"⭐ {t('ui.game_list.context_menu.add_to_favorites')}", lambda: self.toggle_favorite(game))
+        menu.addAction(f"🌐 {t('ui.game_list.context_menu.view_store')}", lambda: self.open_in_store(game))
         menu.addSeparator()
-        menu.addAction(f"✏️ {t('ui.context_menu.edit_metadata')}", lambda: self.edit_game_metadata(game))
+        menu.addAction(f"✏️ {t('ui.game_list.context_menu.edit_metadata')}", lambda: self.edit_game_metadata(game))
         menu.exec(pos)
-    
+
     def on_category_right_click(self, category: str, pos):
         """Rechtsklick auf Kategorie"""
         special = [t('ui.categories.all_games'), t('ui.categories.favorites'), t('ui.categories.uncategorized')]
         if category in special:
             return
         menu = QMenu(self)
-        menu.addAction(f"✏️ {t('ui.context_menu.rename')}", lambda: self.rename_category(category))
-        menu.addAction(f"🗑️ {t('ui.context_menu.delete')}", lambda: self.delete_category(category))
-        menu.addAction(f"🏷️ {t('ui.context_menu.auto_categorize')}", lambda: self.auto_categorize_category(category))
+        menu.addAction(f"✏️ {t('ui.categories.rename')}", lambda: self.rename_category(category))
+        menu.addAction(f"🗑️ {t('ui.categories.delete')}", lambda: self.delete_category(category))
+        menu.addAction(f"🏷️ Auto-Categorize", lambda: self.auto_categorize_category(category))
         menu.exec(pos)
-    
+
     def on_search(self, query):
         """Suche"""
         if not query:
@@ -400,15 +335,15 @@ class MainWindow(QMainWindow):
             sorted_results = sorted(results, key=lambda g: g.name.lower())
             self.tree.populate_categories({f"Search Results ({len(results)})": sorted_results})
             self.tree.expandAll()
-            self.set_status(t('ui.status.found_results', count=len(results)))
+            self.set_status(f"Found {len(results)} results")
         else:
             self.tree.clear()
-            self.set_status(t('ui.status.no_results'))
-    
+            self.set_status("No results found")
+
     def clear_search(self):
         self.search_entry.clear()
         self._populate_categories()
-    
+
     def toggle_favorite(self, game: Game):
         if game.is_favorite():
             game.categories.remove('favorite')
@@ -418,59 +353,59 @@ class MainWindow(QMainWindow):
             self.vdf_parser.add_app_category(game.app_id, 'favorite')
         self.vdf_parser.save()
         self._populate_categories()
-    
+
     def open_in_store(self, game: Game):
         import webbrowser
         webbrowser.open(f"https://store.steampowered.com/app/{game.app_id}")
-    
+
     def rename_category(self, old_name: str):
-        new_name, ok = QInputDialog.getText(self, t('ui.context_menu.rename'), 
-                                           t('ui.dialogs.rename_category', old=old_name))
+        new_name, ok = QInputDialog.getText(self, t('ui.categories.rename'),
+                                           f"Rename '{old_name}' to:")
         if ok and new_name and new_name != old_name:
             self.vdf_parser.rename_category(old_name, new_name)
             self.vdf_parser.save()
             self._populate_categories()
-    
+
     def delete_category(self, category: str):
-        reply = QMessageBox.question(self, t('ui.dialogs.confirm_delete', name=category),
-                                     t('ui.dialogs.confirm_delete_msg'))
+        reply = QMessageBox.question(self, t('ui.dialogs.confirm_delete_category', name=category),
+                                     t('ui.dialogs.confirm_delete_category_msg'))
         if reply == QMessageBox.StandardButton.Yes:
             self.vdf_parser.delete_category(category)
             self.vdf_parser.save()
             self._populate_categories()
-    
+
     def auto_categorize(self):
         uncat = self.game_manager.get_uncategorized_games()
         self._show_auto_categorize_dialog(uncat, None)
-    
+
     def auto_categorize_category(self, category: str):
         games = self.game_manager.get_games_by_category(category)
         self._show_auto_categorize_dialog(games, category)
-    
+
     def _show_auto_categorize_dialog(self, games: List[Game], category_name: Optional[str]):
-        dialog = AutoCategorizeDialog(self, games, len(self.game_manager.games), 
+        dialog = AutoCategorizeDialog(self, games, len(self.game_manager.games),
                                      self._do_auto_categorize, category_name)
         dialog.exec()
-    
+
     def _do_auto_categorize(self, settings: dict):
         if not settings:
             return
-        
+
         backup_dir = self.vdf_parser.config_path.parent
         backup_filename = f'localconfig_backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.vdf'
         backup_path = backup_dir / backup_filename
         import shutil
         shutil.copy2(self.vdf_parser.config_path, backup_path)
-        self.set_status(t('ui.status.backup_created', name=backup_path.name))
-        
+        self.set_status(f"Backup: {backup_path.name}")
+
         games = self.game_manager.get_all_games() if settings['scope'] == 'all' else \
                (self.selected_games if self.selected_games else self.game_manager.get_uncategorized_games())
-        
+
         methods = settings['methods']
-        progress = QProgressDialog(t('ui.auto_categorize.processing', current=0, total=len(games)), 
+        progress = QProgressDialog(f"Processing 0/{len(games)} games...",
                                    t('ui.dialogs.cancel'), 0, len(methods) * len(games), self)
         progress.setWindowModality(Qt.WindowModality.WindowModal)
-        
+
         step = 0
         for method in methods:
             if method == 'tags':
@@ -478,7 +413,7 @@ class MainWindow(QMainWindow):
                     if progress.wasCanceled():
                         break
                     progress.setValue(step + i)
-                    progress.setLabelText(f"{t('ui.auto_categorize.processing', current=i+1, total=len(games))}: {game.name[:50]}")
+                    progress.setLabelText(f"Processing {i+1}/{len(games)}: {game.name[:50]}")
                     QApplication.processEvents()
                     tags = self.steam_scraper.get_game_tags(game.app_id, settings['tags_count'], settings['ignore_common'])
                     for tag in tags:
@@ -508,20 +443,20 @@ class MainWindow(QMainWindow):
                             self.vdf_parser.add_app_category(game.app_id, genre)
                             if genre not in game.categories:
                                 game.categories.append(genre)
-        
+
         self.vdf_parser.save()
         progress.close()
         self._populate_categories()
         QMessageBox.information(self, t('ui.dialogs.success'),
-                              t('ui.dialogs.categorize_complete', methods=len(methods), backup=backup_path.name))
-    
+                              f"Categorization complete!\n{len(methods)} method(s) applied.\nBackup: {backup_path.name}")
+
     def edit_game_metadata(self, game: Game):
         if not self.appinfo_manager or not self.appinfo_data:
-            QMessageBox.warning(self, t('ui.dialogs.not_available'), t('ui.dialogs.metadata_not_available'))
+            QMessageBox.warning(self, "Not Available", "Metadata editing is not available.")
             return
         meta = self.appinfo_manager.get_app_metadata(game.app_id, self.appinfo_data)
         if not meta:
-            QMessageBox.warning(self, t('ui.dialogs.error'), t('ui.dialogs.metadata_load_error', name=game.name))
+            QMessageBox.warning(self, t('ui.dialogs.error'), f"Could not load metadata for {game.name}")
             return
         dialog = MetadataEditDialog(self, game.name, meta)
         if dialog.exec():
@@ -529,14 +464,14 @@ class MainWindow(QMainWindow):
             if new_meta and self.appinfo_manager.set_app_metadata(game.app_id, self.appinfo_data, new_meta):
                 if self.appinfo_manager.save_appinfo(self.appinfo_data):
                     QMessageBox.information(self, t('ui.dialogs.success'),
-                                          t('ui.dialogs.metadata_success', name=game.name))
-    
+                                          f"Metadata saved for {game.name}")
+
     def bulk_edit_metadata(self):
         if not self.selected_games:
-            QMessageBox.warning(self, t('ui.dialogs.no_selection'), t('ui.dialogs.no_games_selected'))
+            QMessageBox.warning(self, "No Selection", t('errors.no_games_selected'))
             return
         if not self.appinfo_manager or not self.appinfo_data:
-            QMessageBox.warning(self, t('ui.dialogs.not_available'), t('ui.dialogs.metadata_not_available'))
+            QMessageBox.warning(self, "Not Available", "Metadata editing is not available.")
             return
         game_names = [g.name for g in self.selected_games]
         dialog = BulkMetadataEditDialog(self, len(self.selected_games), game_names)
@@ -544,9 +479,9 @@ class MainWindow(QMainWindow):
             settings = dialog.get_metadata()
             if settings:
                 self._do_bulk_metadata_edit(self.selected_games, settings)
-    
+
     def _do_bulk_metadata_edit(self, games: List[Game], settings: Dict):
-        progress = QProgressDialog(t('ui.status.applying_changes'), t('ui.dialogs.cancel'), 0, len(games), self)
+        progress = QProgressDialog("Applying changes...", t('ui.dialogs.cancel'), 0, len(games), self)
         progress.setWindowModality(Qt.WindowModality.WindowModal)
         success_count = 0
         for i, game in enumerate(games):
@@ -580,28 +515,28 @@ class MainWindow(QMainWindow):
         progress.setValue(len(games))
         if success_count > 0 and self.appinfo_manager.save_appinfo(self.appinfo_data):
             QMessageBox.information(self, t('ui.dialogs.success'),
-                                  t('ui.dialogs.bulk_success', count=success_count))
-    
+                                  f"Successfully edited {success_count} games!")
+
     def restore_metadata_changes(self):
         if not self.appinfo_manager:
-            QMessageBox.warning(self, t('ui.dialogs.not_available'), t('ui.dialogs.metadata_not_available'))
+            QMessageBox.warning(self, "Not Available", "Metadata editing is not available.")
             return
         mod_count = self.appinfo_manager.get_modification_count()
         if mod_count == 0:
-            QMessageBox.information(self, t('ui.dialogs.no_changes'), t('ui.dialogs.no_tracked_changes'))
+            QMessageBox.information(self, "No Changes", "No tracked changes to restore.")
             return
         dialog = MetadataRestoreDialog(self, mod_count)
         if dialog.exec() and dialog.should_restore():
             restored = self.appinfo_manager.restore_modifications(self.appinfo_data)
             if restored > 0 and self.appinfo_manager.save_appinfo(self.appinfo_data):
                 QMessageBox.information(self, t('ui.dialogs.success'),
-                                      t('ui.dialogs.restore_success', count=restored))
-    
+                                      f"Restored {restored} modifications!")
+
     def refresh_data(self):
         self._load_data()
-    
+
     def show_settings(self):
-        QMessageBox.information(self, "TODO", t('ui.dialogs.coming_soon'))
-    
+        QMessageBox.information(self, "TODO", "Settings dialog coming soon!")
+
     def set_status(self, text: str):
         self.statusbar.showMessage(text)
