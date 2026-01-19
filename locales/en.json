@@ -184,8 +184,8 @@
       "general": "General",
       "language": "Language",
       "languages": {
-        "de": "German",
-        "en": "English"
+        "de": "🇩🇪 German",
+        "en": "🇬🇧 English"
       },
       "restart_required": "Please restart the application to apply language changes.",
       "appearance": "Appearance",
