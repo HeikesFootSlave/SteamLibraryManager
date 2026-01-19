@@ -1,106 +1,635 @@
 """
-Settings Dialog - Mit i18n für Sprachen und Flaggen
+Settings Dialog - Clean & i18n-ready (Final)
 Speichern als: src/ui/settings_dialog.py
 """
+
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QFormLayout, QComboBox, 
-    QPushButton, QHBoxLayout, QMessageBox, QGroupBox, QLabel
+    QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
+    QPushButton, QLabel, QComboBox, QLineEdit, QFileDialog,
+    QTabWidget, QWidget, QCheckBox, QSpinBox, QGroupBox,
+    QMessageBox
 )
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QFont
+from typing import Optional, Dict
+from pathlib import Path
+
 from src.config import config
 from src.utils.i18n import t
 
+
 class SettingsDialog(QDialog):
+    """Settings Dialog mit getrennter UI/Tags Sprache"""
+
+    # Signals
+    language_changed = pyqtSignal(str)
+
+    # Verfügbare Sprach-Codes
+    # Wir nutzen t() um den Anzeigenamen (inkl. Flagge) aus der JSON zu holen
+    SUPPORTED_LANGUAGES = ['en', 'de']
+
     def __init__(self, parent=None):
         super().__init__(parent)
+
         self.setWindowTitle(t('ui.settings.title'))
-        self.setMinimumWidth(500)
+        self.setMinimumWidth(650)
+        self.setMinimumHeight(550)
+        self.setModal(True)
+
+        self.result_settings = None
+        self.original_ui_language = config.UI_LANGUAGE
+        
         self._create_ui()
         self._load_current_settings()
 
     def _create_ui(self):
+        """Erstelle UI Struktur"""
         layout = QVBoxLayout(self)
 
-        # --- Allgemein ---
-        group_general = QGroupBox(t('ui.settings.general'))
-        form_general = QFormLayout(group_general)
+        # Title
+        title = QLabel(t('ui.settings.title'))
+        title.setFont(QFont("Arial", 16, QFont.Weight.Bold))
+        layout.addWidget(title)
 
-        # Sprachauswahl mit Flaggen (Emojis) und i18n
-        self.combo_language = QComboBox()
-        self.combo_language.addItem(t('ui.settings.languages.de'), "de")
-        self.combo_language.addItem(t('ui.settings.languages.en'), "en")        
-        form_general.addRow(t('ui.settings.language'), self.combo_language)
+        # Tabs
+        tabs = QTabWidget()
 
-        # Theme Auswahl
-        self.combo_theme = QComboBox()
-        self.combo_theme.addItem(f"🌑 {t('ui.settings.themes.dark')}", "dark")
-        self.combo_theme.addItem(f"☀️ {t('ui.settings.themes.light')}", "light")
-        form_general.addRow(t('ui.settings.theme'), self.combo_theme)
+        # Tab 1: General
+        general_tab = self._create_general_tab()
+        tabs.addTab(general_tab, t('ui.settings.general'))
 
-        layout.addWidget(group_general)
+        # Tab 2: Auto-Categorization
+        auto_cat_tab = self._create_auto_cat_tab()
+        tabs.addTab(auto_cat_tab, t('ui.settings.auto_categorization'))
 
-        # --- Buttons ---
+        layout.addWidget(tabs)
+
+        # Info label (Footer)
+        info_label = QLabel(t('ui.settings.info_label'))
+        info_label.setStyleSheet("color: gray; font-size: 10px; padding: 10px;")
+        info_label.setWordWrap(True)
+        layout.addWidget(info_label)
+
+        # Buttons
         btn_layout = QHBoxLayout()
-        btn_save = QPushButton(t('ui.settings.save'))
-        btn_save.clicked.connect(self._save_settings)
-        
-        btn_cancel = QPushButton(t('ui.settings.cancel'))
-        btn_cancel.clicked.connect(self.reject)
-        
         btn_layout.addStretch()
-        btn_layout.addWidget(btn_cancel)
-        btn_layout.addWidget(btn_save)
+
+        cancel_btn = QPushButton(t('ui.dialogs.cancel'))
+        cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(cancel_btn)
+
+        save_btn = QPushButton(t('ui.settings.save'))
+        save_btn.clicked.connect(self._save)
+        save_btn.setDefault(True)
+        btn_layout.addWidget(save_btn)
+
         layout.addLayout(btn_layout)
 
-    def _load_current_settings(self):
-        """Lädt aktuelle Werte in die GUI"""
-        # Sprache setzen
-        index = self.combo_language.findData(config.UI_LANGUAGE)
-        if index >= 0:
-            self.combo_language.setCurrentIndex(index)
-            
-        # Theme setzen
-        index_theme = self.combo_theme.findData(config.THEME)
-        if index_theme >= 0:
-            self.combo_theme.setCurrentIndex(index_theme)
+    def _create_general_tab(self) -> QWidget:
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
 
-    def _save_settings(self):
-        """Speichert Werte"""
-        selected_lang = self.combo_language.currentData()
-        selected_theme = self.combo_theme.currentData()
-        
-        restart_required = False
-        if selected_lang != config.UI_LANGUAGE:
-            restart_required = True
-            
-        # Werte in Config übernehmen
-        config.UI_LANGUAGE = selected_lang
-        config.THEME = selected_theme
-        
-        # Auf Festplatte speichern
-        config.save()
-        
-        if restart_required:
-            QMessageBox.information(
-                self, 
-                t('ui.dialogs.info'), 
-                t('ui.settings.restart_required')
-            )
-            
-        self.accept()        lang_layout.addRow(ui_lang_label)
+        # Language Group
+        lang_group = QGroupBox(t('ui.settings.language'))
+        lang_layout = QFormLayout()
+
+        # UI Language
+        ui_lang_label = QLabel(f"<b>{t('ui.settings.ui_language_label')}:</b>")
+        lang_layout.addRow(ui_lang_label)
 
         self.ui_language_combo = QComboBox()
-        for code, (flag, name) in self.LANGUAGES.items():
-            self.ui_language_combo.addItem(f"{flag}  {name}", code)
+        for code in self.SUPPORTED_LANGUAGES:
+            # Holt "🇩🇪 Deutsch" oder "🇬🇧 English" aus der JSON
+            self.ui_language_combo.addItem(t(f'ui.settings.languages.{code}'), code)
+            
         self.ui_language_combo.currentIndexChanged.connect(self._on_ui_language_changed)
         lang_layout.addRow("", self.ui_language_combo)
 
-        ui_info = QLabel("(Menus, buttons, dialogs)")
+        ui_info = QLabel(t('ui.settings.ui_info'))
         ui_info.setStyleSheet("color: gray; font-size: 10px;")
         lang_layout.addRow("", ui_info)
 
-        # Spacer
         lang_layout.addRow("", QLabel(""))
 
+        # Tags Language
+        tags_lang_label = QLabel(f"<b>{t('ui.settings.tags_language_label')}:</b>")
+        lang_layout.addRow(tags_lang_label)
+
+        self.tags_language_combo = QComboBox()
+        for code in self.SUPPORTED_LANGUAGES:
+            self.tags_language_combo.addItem(t(f'ui.settings.languages.{code}'), code)
+            
+        lang_layout.addRow("", self.tags_language_combo)
+
+        tags_info = QLabel(t('ui.settings.tags_info'))
+        tags_info.setStyleSheet("color: gray; font-size: 10px;")
+        lang_layout.addRow("", tags_info)
+
+        lang_group.setLayout(lang_layout)
+        layout.addWidget(lang_group)
+
+        # Steam Path Group
+        steam_group = QGroupBox(t('ui.settings.steam_path'))
+        steam_layout = QFormLayout()
+
+        path_layout = QHBoxLayout()
+        self.steam_path_edit = QLineEdit()
+        self.steam_path_edit.setReadOnly(True)
+        path_layout.addWidget(self.steam_path_edit)
+
+        browse_btn = QPushButton(t('ui.settings.browse'))
+        browse_btn.clicked.connect(self._browse_steam_path)
+        path_layout.addWidget(browse_btn)
+
+        steam_layout.addRow("", path_layout)
+        steam_group.setLayout(steam_layout)
+        layout.addWidget(steam_group)
+
+        # Backup Group
+        backup_group = QGroupBox(t('ui.settings.auto_backup'))
+        backup_layout = QVBoxLayout()
+
+        self.backup_checkbox = QCheckBox(t('ui.settings.backup_before_changes'))
+        self.backup_checkbox.setChecked(True)
+        backup_layout.addWidget(self.backup_checkbox)
+
+        backup_group.setLayout(backup_layout)
+        layout.addWidget(backup_group)
+
+        layout.addStretch()
+        return widget
+
+    def _create_auto_cat_tab(self) -> QWidget:
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+
+        # Tags Settings Group
+        tags_group = QGroupBox(t('ui.settings.tags_group'))
+        tags_layout = QFormLayout()
+
+        # Tags per game
+        self.tags_per_game_spin = QSpinBox()
+        self.tags_per_game_spin.setMinimum(1)
+        self.tags_per_game_spin.setMaximum(20)
+        self.tags_per_game_spin.setValue(13)
+        tags_layout.addRow(t('ui.settings.tags_per_game') + ":", self.tags_per_game_spin)
+
+        # Ignore common tags
+        self.ignore_common_checkbox = QCheckBox(t('ui.settings.ignore_common_tags'))
+        self.ignore_common_checkbox.setChecked(True)
+        tags_layout.addRow("", self.ignore_common_checkbox)
+
+        tags_group.setLayout(tags_layout)
+        layout.addWidget(tags_group)
+
+        # Info
+        info = QLabel(t('ui.settings.auto_cat_info'))
+        info.setStyleSheet("color: gray; padding: 10px;")
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        layout.addStretch()
+        return widget
+
+    def _on_ui_language_changed(self, index):
+        new_language = self.ui_language_combo.currentData()
+
+        if new_language != self.original_ui_language:
+            # Reload i18n locally to update dialog texts immediately
+            from src.utils.i18n import init_i18n
+            init_i18n(new_language)
+            self._refresh_texts()
+            # Emit signal for parent
+            self.language_changed.emit(new_language)
+
+    def _refresh_texts(self):
+        """Update window title when language changes"""
+        self.setWindowTitle(t('ui.settings.title'))
+
+    def _browse_steam_path(self):
+        path = QFileDialog.getExistingDirectory(
+            self,
+            "Select Steam Installation Directory",
+            str(Path.home())
+        )
+        if path:
+            self.steam_path_edit.setText(path)
+
+    def _load_current_settings(self):
+        # UI Language
+        ui_lang = config.UI_LANGUAGE if hasattr(config, 'UI_LANGUAGE') else config.DEFAULT_LOCALE
+        index = self.ui_language_combo.findData(ui_lang)
+        if index >= 0:
+            self.ui_language_combo.setCurrentIndex(index)
+
+        # Tags Language
+        tags_lang = config.TAGS_LANGUAGE if hasattr(config, 'TAGS_LANGUAGE') else config.DEFAULT_LOCALE
+        index = self.tags_language_combo.findData(tags_lang)
+        if index >= 0:
+            self.tags_language_combo.setCurrentIndex(index)
+
+        # Steam Path
+        if config.STEAM_PATH:
+            self.steam_path_edit.setText(str(config.STEAM_PATH))
+
+        # Tags settings
+        self.tags_per_game_spin.setValue(config.TAGS_PER_GAME)
+        self.ignore_common_checkbox.setChecked(config.IGNORE_COMMON_TAGS)
+
+    def _save(self):
+        self.result_settings = {
+            'ui_language': self.ui_language_combo.currentData(),
+            'tags_language': self.tags_language_combo.currentData(),
+            'steam_path': self.steam_path_edit.text() if self.steam_path_edit.text() else None,
+            'backup_enabled': self.backup_checkbox.isChecked(),
+            'tags_per_game': self.tags_per_game_spin.value(),
+            'ignore_common_tags': self.ignore_common_checkbox.isChecked()
+        }
+        self.accept()
+
+    def get_settings(self) -> Optional[Dict]:
+        return self.result_settings            self.tags_language_combo.addItem(t(f'ui.settings.languages.{code}'), code)
+            
+        lang_layout.addRow("", self.tags_language_combo)
+
+        tags_info = QLabel(t('ui.settings.tags_info'))
+        tags_info.setStyleSheet("color: gray; font-size: 10px;")
+        lang_layout.addRow("", tags_info)
+
+        lang_group.setLayout(lang_layout)
+        layout.addWidget(lang_group)
+
+        # Steam Path Group
+        steam_group = QGroupBox(t('ui.settings.steam_path'))
+        steam_layout = QFormLayout()
+
+        path_layout = QHBoxLayout()
+        self.steam_path_edit = QLineEdit()
+        self.steam_path_edit.setReadOnly(True)
+        path_layout.addWidget(self.steam_path_edit)
+
+        browse_btn = QPushButton(t('ui.settings.browse'))
+        browse_btn.clicked.connect(self._browse_steam_path)
+        path_layout.addWidget(browse_btn)
+
+        steam_layout.addRow("", path_layout)
+        steam_group.setLayout(steam_layout)
+        layout.addWidget(steam_group)
+
+        # Backup Group
+        backup_group = QGroupBox(t('ui.settings.auto_backup'))
+        backup_layout = QVBoxLayout()
+
+        self.backup_checkbox = QCheckBox(t('ui.settings.backup_before_changes'))
+        self.backup_checkbox.setChecked(True)
+        backup_layout.addWidget(self.backup_checkbox)
+
+        backup_group.setLayout(backup_layout)
+        layout.addWidget(backup_group)
+
+        layout.addStretch()
+        return widget
+
+    def _create_auto_cat_tab(self) -> QWidget:
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+
+        # Tags Settings Group
+        tags_group = QGroupBox(t('ui.settings.tags_group'))
+        tags_layout = QFormLayout()
+
+        # Tags per game
+        self.tags_per_game_spin = QSpinBox()
+        self.tags_per_game_spin.setMinimum(1)
+        self.tags_per_game_spin.setMaximum(20)
+        self.tags_per_game_spin.setValue(13)
+        tags_layout.addRow(t('ui.settings.tags_per_game') + ":", self.tags_per_game_spin)
+
+        # Ignore common tags
+        self.ignore_common_checkbox = QCheckBox(t('ui.settings.ignore_common_tags'))
+        self.ignore_common_checkbox.setChecked(True)
+        tags_layout.addRow("", self.ignore_common_checkbox)
+
+        tags_group.setLayout(tags_layout)
+        layout.addWidget(tags_group)
+
+        # Info
+        info = QLabel(t('ui.settings.auto_cat_info'))
+        info.setStyleSheet("color: gray; padding: 10px;")
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        layout.addStretch()
+        return widget
+
+    def _on_ui_language_changed(self, index):
+        new_language = self.ui_language_combo.currentData()
+
+        if new_language != self.original_ui_language:
+            # Reload i18n locally to update dialog texts immediately
+            from src.utils.i18n import init_i18n
+            init_i18n(new_language)
+            self._refresh_texts()
+            # Emit signal for parent
+            self.language_changed.emit(new_language)
+
+    def _refresh_texts(self):
+        """Update window title when language changes"""
+        self.setWindowTitle(t('ui.settings.title'))
+
+    def _browse_steam_path(self):
+        path = QFileDialog.getExistingDirectory(
+            self,
+            "Select Steam Installation Directory",
+            str(Path.home())
+        )
+        if path:
+            self.steam_path_edit.setText(path)
+
+    def _load_current_settings(self):
+        # UI Language
+        ui_lang = config.UI_LANGUAGE if hasattr(config, 'UI_LANGUAGE') else config.DEFAULT_LOCALE
+        index = self.ui_language_combo.findData(ui_lang)
+        if index >= 0:
+            self.ui_language_combo.setCurrentIndex(index)
+
+        # Tags Language
+        tags_lang = config.TAGS_LANGUAGE if hasattr(config, 'TAGS_LANGUAGE') else config.DEFAULT_LOCALE
+        index = self.tags_language_combo.findData(tags_lang)
+        if index >= 0:
+            self.tags_language_combo.setCurrentIndex(index)
+
+        # Steam Path
+        if config.STEAM_PATH:
+            self.steam_path_edit.setText(str(config.STEAM_PATH))
+
+        # Tags settings
+        self.tags_per_game_spin.setValue(config.TAGS_PER_GAME)
+        self.ignore_common_checkbox.setChecked(config.IGNORE_COMMON_TAGS)
+
+    def _save(self):
+        self.result_settings = {
+            'ui_language': self.ui_language_combo.currentData(),
+            'tags_language': self.tags_language_combo.currentData(),
+            'steam_path': self.steam_path_edit.text() if self.steam_path_edit.text() else None,
+            'backup_enabled': self.backup_checkbox.isChecked(),
+            'tags_per_game': self.tags_per_game_spin.value(),
+            'ignore_common_tags': self.ignore_common_checkbox.isChecked()
+        }
+        self.accept()
+
+    def get_settings(self) -> Optional[Dict]:
+        return self.result_settings"""
+Settings Dialog - Clean & i18n-ready (Final)
+Speichern als: src/ui/settings_dialog.py
+"""
+
+from PyQt6.QtWidgets import (
+    QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
+    QPushButton, QLabel, QComboBox, QLineEdit, QFileDialog,
+    QTabWidget, QWidget, QCheckBox, QSpinBox, QGroupBox,
+    QMessageBox
+)
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QFont
+from typing import Optional, Dict
+from pathlib import Path
+
+from src.config import config
+from src.utils.i18n import t
+
+
+class SettingsDialog(QDialog):
+    """Settings Dialog mit getrennter UI/Tags Sprache"""
+
+    # Signals
+    language_changed = pyqtSignal(str)
+
+    # Verfügbare Sprach-Codes
+    # Wir nutzen t() um den Anzeigenamen (inkl. Flagge) aus der JSON zu holen
+    SUPPORTED_LANGUAGES = ['en', 'de']
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setWindowTitle(t('ui.settings.title'))
+        self.setMinimumWidth(650)
+        self.setMinimumHeight(550)
+        self.setModal(True)
+
+        self.result_settings = None
+        self.original_ui_language = config.UI_LANGUAGE
+        
+        self._create_ui()
+        self._load_current_settings()
+
+    def _create_ui(self):
+        """Erstelle UI Struktur"""
+        layout = QVBoxLayout(self)
+
+        # Title
+        title = QLabel(t('ui.settings.title'))
+        title.setFont(QFont("Arial", 16, QFont.Weight.Bold))
+        layout.addWidget(title)
+
+        # Tabs
+        tabs = QTabWidget()
+
+        # Tab 1: General
+        general_tab = self._create_general_tab()
+        tabs.addTab(general_tab, t('ui.settings.general'))
+
+        # Tab 2: Auto-Categorization
+        auto_cat_tab = self._create_auto_cat_tab()
+        tabs.addTab(auto_cat_tab, t('ui.settings.auto_categorization'))
+
+        layout.addWidget(tabs)
+
+        # Info label (Footer)
+        info_label = QLabel(t('ui.settings.info_label'))
+        info_label.setStyleSheet("color: gray; font-size: 10px; padding: 10px;")
+        info_label.setWordWrap(True)
+        layout.addWidget(info_label)
+
+        # Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+
+        cancel_btn = QPushButton(t('ui.dialogs.cancel'))
+        cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(cancel_btn)
+
+        save_btn = QPushButton(t('ui.settings.save'))
+        save_btn.clicked.connect(self._save)
+        save_btn.setDefault(True)
+        btn_layout.addWidget(save_btn)
+
+        layout.addLayout(btn_layout)
+
+    def _create_general_tab(self) -> QWidget:
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+
+        # Language Group
+        lang_group = QGroupBox(t('ui.settings.language'))
+        lang_layout = QFormLayout()
+
+        # UI Language
+        ui_lang_label = QLabel(f"<b>{t('ui.settings.ui_language_label')}:</b>")
+        lang_layout.addRow(ui_lang_label)
+
+        self.ui_language_combo = QComboBox()
+        for code in self.SUPPORTED_LANGUAGES:
+            # Holt "🇩🇪 Deutsch" oder "🇬🇧 English" aus der JSON
+            self.ui_language_combo.addItem(t(f'ui.settings.languages.{code}'), code)
+            
+        self.ui_language_combo.currentIndexChanged.connect(self._on_ui_language_changed)
+        lang_layout.addRow("", self.ui_language_combo)
+
+        ui_info = QLabel(t('ui.settings.ui_info'))
+        ui_info.setStyleSheet("color: gray; font-size: 10px;")
+        lang_layout.addRow("", ui_info)
+
+        lang_layout.addRow("", QLabel(""))
+
+        # Tags Language
+        tags_lang_label = QLabel(f"<b>{t('ui.settings.tags_language_label')}:</b>")
+        lang_layout.addRow(tags_lang_label)
+
+        self.tags_language_combo = QComboBox()
+        for code in self.SUPPORTED_LANGUAGES:
+            self.tags_language_combo.addItem(t(f'ui.settings.languages.{code}'), code)
+            
+        lang_layout.addRow("", self.tags_language_combo)
+
+        tags_info = QLabel(t('ui.settings.tags_info'))
+        tags_info.setStyleSheet("color: gray; font-size: 10px;")
+        lang_layout.addRow("", tags_info)
+
+        lang_group.setLayout(lang_layout)
+        layout.addWidget(lang_group)
+
+        # Steam Path Group
+        steam_group = QGroupBox(t('ui.settings.steam_path'))
+        steam_layout = QFormLayout()
+
+        path_layout = QHBoxLayout()
+        self.steam_path_edit = QLineEdit()
+        self.steam_path_edit.setReadOnly(True)
+        path_layout.addWidget(self.steam_path_edit)
+
+        browse_btn = QPushButton(t('ui.settings.browse'))
+        browse_btn.clicked.connect(self._browse_steam_path)
+        path_layout.addWidget(browse_btn)
+
+        steam_layout.addRow("", path_layout)
+        steam_group.setLayout(steam_layout)
+        layout.addWidget(steam_group)
+
+        # Backup Group
+        backup_group = QGroupBox(t('ui.settings.auto_backup'))
+        backup_layout = QVBoxLayout()
+
+        self.backup_checkbox = QCheckBox(t('ui.settings.backup_before_changes'))
+        self.backup_checkbox.setChecked(True)
+        backup_layout.addWidget(self.backup_checkbox)
+
+        backup_group.setLayout(backup_layout)
+        layout.addWidget(backup_group)
+
+        layout.addStretch()
+        return widget
+
+    def _create_auto_cat_tab(self) -> QWidget:
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+
+        # Tags Settings Group
+        tags_group = QGroupBox(t('ui.settings.tags_group'))
+        tags_layout = QFormLayout()
+
+        # Tags per game
+        self.tags_per_game_spin = QSpinBox()
+        self.tags_per_game_spin.setMinimum(1)
+        self.tags_per_game_spin.setMaximum(20)
+        self.tags_per_game_spin.setValue(13)
+        tags_layout.addRow(t('ui.settings.tags_per_game') + ":", self.tags_per_game_spin)
+
+        # Ignore common tags
+        self.ignore_common_checkbox = QCheckBox(t('ui.settings.ignore_common_tags'))
+        self.ignore_common_checkbox.setChecked(True)
+        tags_layout.addRow("", self.ignore_common_checkbox)
+
+        tags_group.setLayout(tags_layout)
+        layout.addWidget(tags_group)
+
+        # Info
+        info = QLabel(t('ui.settings.auto_cat_info'))
+        info.setStyleSheet("color: gray; padding: 10px;")
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        layout.addStretch()
+        return widget
+
+    def _on_ui_language_changed(self, index):
+        new_language = self.ui_language_combo.currentData()
+
+        if new_language != self.original_ui_language:
+            # Reload i18n locally to update dialog texts immediately
+            from src.utils.i18n import init_i18n
+            init_i18n(new_language)
+            self._refresh_texts()
+            # Emit signal for parent
+            self.language_changed.emit(new_language)
+
+    def _refresh_texts(self):
+        """Update window title when language changes"""
+        self.setWindowTitle(t('ui.settings.title'))
+
+    def _browse_steam_path(self):
+        path = QFileDialog.getExistingDirectory(
+            self,
+            "Select Steam Installation Directory",
+            str(Path.home())
+        )
+        if path:
+            self.steam_path_edit.setText(path)
+
+    def _load_current_settings(self):
+        # UI Language
+        ui_lang = config.UI_LANGUAGE if hasattr(config, 'UI_LANGUAGE') else config.DEFAULT_LOCALE
+        index = self.ui_language_combo.findData(ui_lang)
+        if index >= 0:
+            self.ui_language_combo.setCurrentIndex(index)
+
+        # Tags Language
+        tags_lang = config.TAGS_LANGUAGE if hasattr(config, 'TAGS_LANGUAGE') else config.DEFAULT_LOCALE
+        index = self.tags_language_combo.findData(tags_lang)
+        if index >= 0:
+            self.tags_language_combo.setCurrentIndex(index)
+
+        # Steam Path
+        if config.STEAM_PATH:
+            self.steam_path_edit.setText(str(config.STEAM_PATH))
+
+        # Tags settings
+        self.tags_per_game_spin.setValue(config.TAGS_PER_GAME)
+        self.ignore_common_checkbox.setChecked(config.IGNORE_COMMON_TAGS)
+
+    def _save(self):
+        self.result_settings = {
+            'ui_language': self.ui_language_combo.currentData(),
+            'tags_language': self.tags_language_combo.currentData(),
+            'steam_path': self.steam_path_edit.text() if self.steam_path_edit.text() else None,
+            'backup_enabled': self.backup_checkbox.isChecked(),
+            'tags_per_game': self.tags_per_game_spin.value(),
+            'ignore_common_tags': self.ignore_common_checkbox.isChecked()
+        }
+        self.accept()
+
+    def get_settings(self) -> Optional[Dict]:
+        return self.result_settings
         # Tags Language
         tags_lang_label = QLabel("<b>Steam Tags Language:</b>")
         lang_layout.addRow(tags_lang_label)
