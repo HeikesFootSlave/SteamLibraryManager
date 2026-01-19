@@ -26,12 +26,8 @@ class SettingsDialog(QDialog):
 
         # Sprachauswahl mit Flaggen (Emojis) und i18n
         self.combo_language = QComboBox()
-        # WICHTIG: Nutze t() für die Anzeigenamen!
-        # In en.json steht bei settings.languages.de "German", in de.json "Deutsch"
-        self.combo_language.addItem(f"🇩🇪 {t('ui.settings.languages.de')}", "de")
-        # In en.json steht bei settings.languages.en "English", in de.json "Englisch"
-        self.combo_language.addItem(f"🇺🇸 {t('ui.settings.languages.en')}", "en")
-        
+        self.combo_language.addItem(t('ui.settings.languages.de'), "de")
+        self.combo_language.addItem(t('ui.settings.languages.en'), "en")        
         form_general.addRow(t('ui.settings.language'), self.combo_language)
 
         # Theme Auswahl
