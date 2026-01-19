@@ -55,6 +55,7 @@ python src/main.py
 ☕ Unterstütze das Projekt
 Die Entwicklung dieses Tools kostet Zeit und Koffein. Wenn dir der Manager hilft, deine Bibliothek zu bändigen, freue ich mich riesig über einen Kaffee!
 
-[PayPal](https://www.paypal.com/donate/?hosted_button_id=HWPG6YAGXAWJJ) 
+[![17688665364546846464391088987251](https://github.com/user-attachments/assets/a2495674-be9e-4d64-bc23-058094635036)
+](https://www.paypal.com/donate/?hosted_button_id=HWPG6YAGXAWJJ) 
 
 (Screenshots und detaillierte Dokumentation folgen in Kürze)
