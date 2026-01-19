@@ -1,23 +1,18 @@
 """
-Auto-Categorize Dialog - PyQt6 Version mit Checkboxen für mehrere Methoden!
-
+Auto-Categorize Dialog - Fully Localized
 Speichern als: src/ui/auto_categorize_dialog.py
 """
 
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel,
     QCheckBox, QRadioButton, QSpinBox, QPushButton, QFrame,
-    QButtonGroup
+    QButtonGroup, QMessageBox
 )
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
 from typing import List, Callable, Optional
 from src.utils.i18n import t
 
-
 class AutoCategorizeDialog(QDialog):
-    """Dialog für Auto-Kategorisierung"""
-
     def __init__(self, parent, games: List,
                  all_games_count: int,
                  on_start: Callable,
@@ -30,19 +25,15 @@ class AutoCategorizeDialog(QDialog):
         self.category_name = category_name
         self.result = None
 
-        # Window setup
         self.setWindowTitle(t('ui.auto_categorize.title'))
         self.setMinimumWidth(550)
         self.setModal(True)
 
         self._create_ui()
         self._update_estimate()
-
-        # Center window
         self._center_on_parent()
 
     def _center_on_parent(self):
-        """Center dialog on parent window"""
         if self.parent():
             parent_geo = self.parent().geometry()
             self.move(
@@ -51,56 +42,149 @@ class AutoCategorizeDialog(QDialog):
             )
 
     def _create_ui(self):
-        """Create UI"""
         layout = QVBoxLayout(self)
-        layout.setSpacing(10)
-        layout.setContentsMargins(20, 20, 20, 20)
 
-        # Title
-        title = QLabel(f"🏷️ {t('ui.auto_categorize.title')}")
-        title_font = QFont()
-        title_font.setPointSize(16)
-        title_font.setBold(True)
-        title.setFont(title_font)
-        layout.addWidget(title)
+        # Info Header
+        game_count = len(self.games)
+        header_text = t('ui.auto_categorize.title_count', count=game_count)
+        if self.category_name:
+            header_text += f" ({self.category_name})"
+        
+        header_label = QLabel(header_text)
+        font = header_label.font()
+        font.setPointSize(12)
+        font.setBold(True)
+        header_label.setFont(font)
+        header_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(header_label)
 
-        # === METHODS GROUP ===
-        methods_group = QGroupBox(t('ui.auto_categorize.method') + " (select multiple)")
-        methods_layout = QVBoxLayout()
+        # Methods
+        group_methods = QGroupBox(t('ui.auto_categorize.method'))
+        vbox_methods = QVBoxLayout(group_methods)
 
-        self.cb_tags = QCheckBox(f"{t('ui.auto_categorize.by_tags')} (Recommended)")
+        self.cb_tags = QCheckBox(t('ui.auto_categorize.by_tags'))
         self.cb_tags.setChecked(True)
         self.cb_tags.toggled.connect(self._update_estimate)
-        methods_layout.addWidget(self.cb_tags)
+        vbox_methods.addWidget(self.cb_tags)
 
         self.cb_publisher = QCheckBox(t('ui.auto_categorize.by_publisher'))
         self.cb_publisher.toggled.connect(self._update_estimate)
-        methods_layout.addWidget(self.cb_publisher)
-
-        self.cb_franchise = QCheckBox(f"{t('ui.auto_categorize.by_franchise')} (LEGO, AC, etc.)")
+        vbox_methods.addWidget(self.cb_publisher)
+        
+        self.cb_franchise = QCheckBox(t('ui.auto_categorize.by_franchise'))
         self.cb_franchise.toggled.connect(self._update_estimate)
-        methods_layout.addWidget(self.cb_franchise)
-
+        vbox_methods.addWidget(self.cb_franchise)
+        
         self.cb_genre = QCheckBox(t('ui.auto_categorize.by_genre'))
         self.cb_genre.toggled.connect(self._update_estimate)
-        methods_layout.addWidget(self.cb_genre)
+        vbox_methods.addWidget(self.cb_genre)
 
-        methods_group.setLayout(methods_layout)
-        layout.addWidget(methods_group)
+        layout.addWidget(group_methods)
 
-        # === TAGS SETTINGS GROUP ===
-        self.tags_group = QGroupBox(t('ui.auto_categorize.settings'))
-        tags_layout = QVBoxLayout()
+        # Scope
+        group_scope = QGroupBox(t('ui.auto_categorize.will_do'))
+        vbox_scope = QVBoxLayout(group_scope)
+        
+        self.rb_selected = QRadioButton(t('ui.metadata_editor.selected_games', count=game_count))
+        self.rb_selected.setChecked(True)
+        vbox_scope.addWidget(self.rb_selected)
 
-        # Tags per game
-        tags_per_game_layout = QHBoxLayout()
-        tags_per_game_layout.addWidget(QLabel(t('ui.auto_categorize.tags_per_game') + ":"))
+        self.rb_all = QRadioButton(t('ui.categories.all_games') + f" ({self.all_games_count})")
+        vbox_scope.addWidget(self.rb_all)
+        
+        self.bg_scope = QButtonGroup(self)
+        self.bg_scope.addButton(self.rb_selected)
+        self.bg_scope.addButton(self.rb_all)
+
+        layout.addWidget(group_scope)
+
+        # Options
+        group_opts = QGroupBox(t('ui.auto_categorize.settings'))
+        form_opts = QHBoxLayout(group_opts)
+
+        form_opts.addWidget(QLabel(t('ui.auto_categorize.tags_per_game') + ":"))
         self.tags_count_spin = QSpinBox()
-        self.tags_count_spin.setMinimum(1)
-        self.tags_count_spin.setMaximum(20)
-        self.tags_count_spin.setValue(13)
-        self.tags_count_spin.valueChanged.connect(self._update_estimate)
-        tags_per_game_layout.addWidget(self.tags_count_spin)
+        self.tags_count_spin.setRange(1, 20)
+        self.tags_count_spin.setValue(5)
+        form_opts.addWidget(self.tags_count_spin)
+        
+        self.cb_ignore_common = QCheckBox(t('ui.auto_categorize.ignore_common'))
+        self.cb_ignore_common.setChecked(True)
+        form_opts.addWidget(self.cb_ignore_common)
+
+        layout.addWidget(group_opts)
+
+        # Estimate
+        self.estimate_label = QLabel()
+        self.estimate_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.estimate_label.setStyleSheet("color: gray;")
+        layout.addWidget(self.estimate_label)
+
+        # Buttons
+        btn_layout = QHBoxLayout()
+        btn_start = QPushButton(t('ui.auto_categorize.start'))
+        btn_start.clicked.connect(self._start)
+        btn_start.setDefault(True)
+        
+        btn_cancel = QPushButton(t('ui.auto_categorize.cancel'))
+        btn_cancel.clicked.connect(self.reject)
+
+        btn_layout.addStretch()
+        btn_layout.addWidget(btn_cancel)
+        btn_layout.addWidget(btn_start)
+        layout.addLayout(btn_layout)
+
+    def _update_estimate(self):
+        game_count = self.all_games_count if self.rb_all.isChecked() else len(self.games)
+        
+        selected_methods = []
+        if self.cb_tags.isChecked(): selected_methods.append('tags')
+        if self.cb_publisher.isChecked(): selected_methods.append('publisher')
+        if self.cb_franchise.isChecked(): selected_methods.append('franchise')
+        if self.cb_genre.isChecked(): selected_methods.append('genre')
+
+        time_per_game = 0.0
+        if 'tags' in selected_methods: time_per_game += 0.5 
+        
+        total_time = game_count * time_per_game
+        if total_time < 1: total_time = 1
+        
+        time_str = f"{int(total_time)}s"
+        if total_time > 60:
+            time_str = f"{int(total_time/60)}m {int(total_time%60)}s"
+
+        self.estimate_label.setText(
+            t('ui.auto_categorize.estimated_time', seconds=time_str)
+        )
+
+    def _start(self):
+        selected_methods = []
+        if self.cb_tags.isChecked(): selected_methods.append('tags')
+        if self.cb_publisher.isChecked(): selected_methods.append('publisher')
+        if self.cb_franchise.isChecked(): selected_methods.append('franchise')
+        if self.cb_genre.isChecked(): selected_methods.append('genre')
+
+        if not selected_methods:
+            QMessageBox.warning(
+                self,
+                t('ui.auto_categorize.no_method_title'),
+                t('ui.auto_categorize.error_no_method')
+            )
+            return
+
+        self.result = {
+            'methods': selected_methods,
+            'scope': 'all' if self.rb_all.isChecked() else 'selected',
+            'tags_count': self.tags_count_spin.value(),
+            'ignore_common': self.cb_ignore_common.isChecked()
+        }
+
+        self.accept()
+        if self.on_start:
+            self.on_start(self.result)
+
+    def get_result(self):
+        return self.result        tags_per_game_layout.addWidget(self.tags_count_spin)
         tags_per_game_layout.addStretch()
         tags_layout.addLayout(tags_per_game_layout)
 
