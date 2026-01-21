@@ -23,23 +23,35 @@
       "view": "Ansicht",
       "tools": "Werkzeuge",
       "help": "Hilfe",
+      "metadata": "Metadaten",
+      "login": "👤 Bei Steam anmelden",
+      "logout": "Abmelden",
       "settings": "⚙️ Einstellungen",
       "exit": "Beenden",
       "refresh": "🔄 Bibliothek aktualisieren",
       "save": "💾 Konfiguration speichern",
+      "import_categories": "Kategorien importieren",
+      "export_categories": "Kategorien exportieren",
+      "about": "Über",
       "bulk_edit": "✏️ Massenbearbeitung",
       "bulk_rename": "Mehrfach Umbenennen",
       "restore": "🔄 Metadaten wiederherstellen",
       "github": "GitHub besuchen",
+      "check_updates": "Nach Updates suchen",
       "donate": "☕ Spenden",
-      "about": "Über",
-      "check_updates": "Nach Updates suchen"
+      "coming_soon": "Demnächst"
     },
     "toolbar": {
       "refresh": "🔄 Aktualisieren",
-      "settings": "⚙️ Einstellungen",
+      "add_category": "Kategorie hinzufügen",
+      "edit_metadata": "Metadaten bearbeiten",
+      "bulk_edit": "Mehrfach Editierung von Metadaten",
+      "restore_changes": "Metadaten zurücksetzen",
       "auto_categorize": "🏷️ Auto-Kategorisierung",
-      "login": "👤 Bei Steam anmelden"
+      "filter": "Filter",
+      "sort": "Sortieren",
+      "settings": "⚙️ Einstellungen",
+      "login": "👤 Anmelden"
     },
     "categories": {
       "title": "Kategorien",
@@ -50,6 +62,8 @@
       "add_new": "Neue Kategorie",
       "rename": "✏️ Umbenennen",
       "delete": "🗑️ Löschen",
+      "icon_folder": "📁",
+      "icon_favorite": "⭐",
       "sym_expand": "[+]",
       "sym_collapse": "[−]",
       "more_games": "  ... und {count} weitere Spiele"
@@ -66,9 +80,12 @@
         "delete": "🗑️ Kategorie löschen",
         "auto_categorize": "🏷️ Auto-Kategorisieren",
         "auto_categorize_selected": "🏷️ Auswahl Auto-Kategorisieren",
+        "view_store": "Im Steam Shop ansehen",
         "hide": "Spiel verstecken",
         "unhide": "Spiel einblenden",
-        "uninstall": "Deinstallieren"
+        "uninstall": "Deinstallieren",
+        "add_to_favorites": "Zu Favoriten hinzufügen",
+        "remove_from_favorites": "Aus Favoriten entfernen"
       }
     },
     "game_details": {
@@ -93,6 +110,11 @@
       "never_played": "Nie gespielt",
       "hours": "{hours}h",
       "value_unknown": "Unbekannt",
+      "name": "Name",
+      "review_positive": "Positiv",
+      "review_mixed": "Ausgeglichen",
+      "review_negative": "Negativ",
+      "review_count": "({count})",
       "gallery": {
         "grids": "GRIDS",
         "logos": "LOGOS",
@@ -182,7 +204,7 @@
       "backup_group": "Backups",
       "backup_limit": "Max. Backups:",
       "backup_files": "Dateien",
-      "backup_tooltip": "Anzahl der Backups, die behalten werden (0 = aus)",
+      "backup_tooltip": "Anzahl der Backups",
       "tags_group": "Tags",
       "tags_per_game": "Tags pro Spiel",
       "ignore_common_tags": "Häufige Tags ignorieren",
@@ -197,19 +219,26 @@
     },
     "login": {
       "title": "Bei Steam anmelden",
-      "info": "Klicke unten für den Steam OAuth Login.",
+      "window_title_emoji": "👤 Bei Steam anmelden",
+      "info": "Klicke den Button unten, um dich mit deinem Steam-Account anzumelden.\n\nEs öffnet sich ein Browser-Fenster für den Steam-Login.\nNach der Anmeldung, kehre zu diesem Fenster zurück.",
       "button": "🌐 Mit Steam anmelden",
-      "status_waiting": "⏳ Warte auf Browser...",
-      "status_success": "✅ Login erfolgreich!",
-      "status_failed": "❌ Login fehlgeschlagen",
-      "html_success_header": "Login Erfolgreich",
-      "html_success_body": "Du kannst dieses Fenster jetzt schließen."
+      "status_waiting": "⏳ Starte lokalen Server...",
+      "status_browser": "🌐 Öffne Browser... Bei Steam anmelden",
+      "status_success": "✅ Anmeldung erfolgreich! Steam ID: {id}",
+      "status_failed": "❌ Anmeldung fehlgeschlagen",
+      "error_title": "Fehler",
+      "error_msg": "Konnte Login nicht starten: {error}",
+      "html_success_title": "Steam Login Erfolgreich",
+      "html_success_header": "✅ Anmeldung erfolgreich!",
+      "html_success_body": "Du kannst dieses Fenster schließen und zum Steam Library Manager zurückkehren."
+    },
+    "auth": {
+      "window_title": "Steam Login",
+      "error_no_code": "Kein Authentifizierungs-Code empfangen.",
+      "browser_error": "Fehler: Kein Code empfangen.",
+      "success_browser": "Login erfolgreich. Du kannst dieses Fenster schließen."
     },
     "dialogs": {
-      "error": "Fehler",
-      "success": "Erfolg",
-      "cancel": "Abbrechen",
-      "save": "Speichern",
       "confirm_delete": "Kategorie \"{name}\" löschen?",
       "confirm_delete_msg": "Dies entfernt die Kategorie, behält aber die Spiele in deiner Bibliothek.",
       "confirm_delete_category": "Kategorie \"{name}\" löschen?",
@@ -217,17 +246,30 @@
       "confirm_bulk_title": "Massenbearbeitung bestätigen",
       "confirm_bulk": "Dies wird {count} Spiele ändern.\n\nEin Backup wird erstellt. Fortfahren?",
       "rename_category": "Kategorie '{old}' umbenennen in:",
-      "image_picker_title": "Wähle {type} für {game}",
-      "image_picker_loading": "Durchsuche SteamGridDB...",
-      "about_text": "Steam Bibliotheks-Manager v1.0\n\nErstellt mit Python & PyQt6.\nIcons von SteamGridDB.",
+      "backup_created": "✓ Backup erstellt: {path}",
+      "backup_failed": "Backup konnte nicht erstellt werden: {error}",
+      "error": "Fehler",
+      "success": "Erfolg",
+      "warning": "Warnung",
+      "info": "Information",
+      "cancel": "Abbrechen",
+      "save": "Speichern",
       "no_selection": "Keine Auswahl",
       "no_games_selected": "Bitte wähle mindestens ein Spiel aus.",
       "no_changes": "Keine Änderungen",
       "no_tracked_changes": "Keine Änderungen bekannt.",
+      "not_available": "Nicht verfügbar",
+      "metadata_not_available": "Metadaten-Funktionen nicht verfügbar.",
+      "metadata_load_error": "Metadaten konnten nicht geladen werden für {name}",
+      "metadata_success": "Metadaten gespeichert für {name}",
       "bulk_success": "{count} Spiele erfolgreich aktualisiert",
       "restore_success": "{count} Änderungen wiederhergestellt",
       "categorize_complete": "Kategorisierung abgeschlossen ({methods} Methoden)! Backup: {backup}",
-      "metadata_success": "Metadaten gespeichert für {name}"
+      "image_picker_title": "Wähle {type} für {game}",
+      "image_picker_loading": "Durchsuche SteamGridDB...",
+      "api_key_missing": "⚠️ SteamGridDB API Key fehlt!\nBitte in den Einstellungen konfigurieren, um die Bildsuche zu nutzen.",
+      "about_text": "Steam Bibliotheks-Manager v1.0\n\nErstellt mit Python & PyQt6.\nIcons von SteamGridDB.",
+      "backup_msg": "Backup erstellt"
     },
     "status": {
       "ready": "Bereit",
@@ -242,7 +284,10 @@
       "saved_backup": "Konfiguration gespeichert & Backup erstellt",
       "applying_changes": "Wende Änderungen an...",
       "not_logged_in": "Nicht angemeldet",
-      "api_error": "Konnte Spiele nicht von API laden."
+      "localconfig_not_found": "localconfig.vdf nicht gefunden. Bitte einloggen.",
+      "api_warning": "Warnung: Kein STEAM_API_KEY gefunden. Features limitiert.",
+      "api_error": "Konnte Spiele nicht von API laden.",
+      "offline_mode": " (Offline)"
     },
     "errors": {
       "steam_not_found": "Steam-Installation nicht gefunden. Bitte setze den Pfad in den Einstellungen.",
@@ -250,62 +295,97 @@
       "localconfig_not_found": "localconfig.vdf nicht gefunden.",
       "localconfig_load_error": "localconfig.vdf konnte nicht geladen werden",
       "save_failed": "Konnte Konfiguration nicht speichern!",
-      "no_api_key": "Steam API Key nicht konfiguriert."
+      "no_api_key": "Steam API Key nicht konfiguriert.",
+      "api_load_error": "Spiele konnten nicht von der Steam API geladen werden"
+    },
+    "logs": {
+      "steamgrid": {
+        "missing_key": "⚠️ SteamGridDB API Key fehlt!",
+        "id_error": "Fehler beim Abrufen der Game ID für {app_id}: {error}",
+        "saved": "Neues {type} Bild für {app_id} gespeichert",
+        "save_error": "Fehler beim Speichern des Bildes: {error}"
+      },
+      "appinfo": {
+        "loaded": "✓ {count} gespeicherte Änderungen geladen",
+        "error": "Fehler beim Laden der Änderungen: {error}",
+        "saved_mods": "✓ {count} Änderungen gespeichert",
+        "saved_vdf": "✓ appinfo.vdf gespeichert",
+        "save_error": "Fehler beim Speichern der Änderungen: {error}",
+        "vdf_save_error": "Fehler beim Speichern von appinfo.vdf: {error}",
+        "vdf_loaded": "✓ appinfo.vdf mit {count} Apps geladen",
+        "vdf_load_error": "Fehler beim Laden von appinfo.vdf: {error}",
+        "file_not_found": "Fehler: appinfo.vdf nicht gefunden unter {path}",
+        "restored": "✓ {count} Änderungen wiederhergestellt",
+        "restoring": "Stelle {count} Änderungen wieder her...",
+        "reverted": "✓ Spiel {app_id} auf Original zurückgesetzt",
+        "no_restore": "Keine Änderungen zum Wiederherstellen",
+        "not_found": "App {app_id} nicht in appinfo gefunden",
+        "no_mods_app": "Keine Änderungen für App {app_id} gefunden",
+        "set_error": "Fehler beim Setzen der Metadaten für {app_id}: {error}",
+        "cleared": "✓ Alle Änderungsprotokolle gelöscht",
+        "backup_created": "✓ Backup erstellt: {path}",
+        "backup_failed": "Backup fehlgeschlagen: {error}",
+        "backup_removed": "  Altes Backup entfernt: {name}",
+        "backup_error": "  Fehler beim Entfernen von {name}: {error}"
+      },
+      "parser": {
+        "apps_not_found": "Warnung: 'Apps'-Sektion in localconfig.vdf nicht gefunden",
+        "file_not_found": "Fehler: localconfig.vdf nicht gefunden unter {path}",
+        "load_error": "Fehler beim Laden von localconfig.vdf: {error}",
+        "save_error": "Fehler beim Speichern von localconfig.vdf: {error}",
+        "loaded": "✓ {count} Spiele aus localconfig geladen",
+        "saved": "✓ Saved localconfig.vdf",
+        "backup_created": "✓ Backup erstellt: {path}",
+        "no_changes": "Keine Änderungen zu speichern"
+      },
+      "manager": {
+        "loading_api": "Lade Spiele von Steam API...",
+        "loaded_steam": "✓ {count} Spiele von Steam API geladen",
+        "merging": "Führe mit localconfig Kategorien zusammen...",
+        "merged": "✓ {count} Spiele zusammengeführt",
+        "found_missing": "{count} Spiele in localconfig aber nicht in API gefunden",
+        "error_api": "API Fehler: {error}",
+        "error_no_games": "Keine Spiele in API-Antwort gefunden",
+        "error_unexpected": "Unerwarteter Fehler: {error}",
+        "error_details": "Fehler beim Abrufen der Details für {app_id}: {error}",
+        "stats_title": "📊 Statistiken:",
+        "total": "Spiele gesamt: {count}",
+        "favorites": "Favoriten: {count}",
+        "uncategorized": "Unkategorisiert: {count}",
+        "categories_title": "Kategorien: {count}"
+      },
+      "steam_store": {
+        "fetch_error": "Fehler beim Abrufen der Tags für {app_id}: {error}"
+      },
+      "auth": {
+        "starting": "Starte Steam OAuth Prozess...",
+        "server_started": "Lokaler Server hört auf Port {port}",
+        "token_received": "OAuth Token empfangen!",
+        "error": "Auth Fehler: {error}",
+        "webview_missing": "Info: pywebview nicht installiert, nutze System-Browser.",
+        "client_id_missing": "WARNUNG: STEAM_CLIENT_ID fehlt in .env!"
+      },
+      "image": {
+        "pillow_missing": "KRITISCH: Pillow fehlt! Bitte 'pip install Pillow' ausführen."
+      },
+      "backup": {
+        "rotated": "Rotiert/Altes Backup gelöscht: {name}",
+        "delete_error": "Fehler beim Löschen von Backup {name}: {error}"
+      },
+      "config": {
+        "loaded": "✓ Einstellungen geladen",
+        "error": "Fehler beim Laden der Einstellungen: {error}"
+      }
+    },
+    "cli": {
+      "banner": "🎮 Steam Bibliotheks-Manager v1.0 (PyQt6)",
+      "initializing": "🌍 Initialisiere...",
+      "steam_found": "✅ Steam gefunden unter: {path}",
+      "users_found": "👤 {count} Steam-Benutzer gefunden",
+      "steam_not_found": "⚠️  Steam nicht gefunden",
+      "starting": "🚀 Starte Anwendung mit PyQt6...",
+      "qt_theme": "✓ Nutze natives Qt-Theme",
+      "error": "❌ Fehler: {error}"
     }
-  },
-  "logs": {
-    "steamgrid": {
-      "missing_key": "⚠️ SteamGridDB API Key fehlt!",
-      "id_error": "Fehler beim Abrufen der Game ID für {app_id}: {error}",
-      "saved": "Neues {type} Bild für {app_id} gespeichert",
-      "save_error": "Fehler beim Speichern des Bildes: {error}"
-    },
-    "appinfo": {
-      "loaded": "✓ {count} gespeicherte Änderungen geladen",
-      "error": "Fehler beim Laden der Änderungen: {error}",
-      "saved_mods": "✓ {count} Änderungen gespeichert",
-      "saved_vdf": "✓ appinfo.vdf gespeichert",
-      "restored": "✓ {count} Änderungen wiederhergestellt",
-      "backup_created": "✓ Backup erstellt: {path}",
-      "backup_failed": "Backup fehlgeschlagen: {error}"
-    },
-    "parser": {
-      "file_not_found": "Fehler: localconfig.vdf nicht gefunden unter {path}",
-      "load_error": "Fehler beim Laden von localconfig.vdf: {error}",
-      "save_error": "Fehler beim Speichern von localconfig.vdf: {error}",
-      "loaded": "✓ {count} Spiele aus localconfig geladen",
-      "saved": "✓ Saved localconfig.vdf",
-      "backup_created": "✓ Backup erstellt: {path}"
-    },
-    "manager": {
-      "loading_api": "Lade Spiele von Steam API...",
-      "loaded_steam": "✓ {count} Spiele von Steam API geladen",
-      "merging": "Führe mit localconfig Kategorien zusammen...",
-      "merged": "✓ {count} Spiele zusammengeführt"
-    },
-    "auth": {
-      "starting": "Starte Steam OAuth Prozess...",
-      "server_started": "Lokaler Server hört auf Port {port}",
-      "token_received": "OAuth Token empfangen!",
-      "error": "Auth Fehler: {error}"
-    },
-    "backup": {
-      "rotated": "Rotiert/Altes Backup gelöscht: {name}",
-      "delete_error": "Fehler beim Löschen von Backup {name}: {error}"
-    },
-    "config": {
-      "loaded": "✓ Einstellungen geladen",
-      "error": "Fehler beim Laden der Einstellungen: {error}"
-    }
-  },
-  "cli": {
-    "banner": "🎮 Steam Bibliotheks-Manager v1.0 (PyQt6)",
-    "initializing": "🌍 Initialisiere...",
-    "steam_found": "✅ Steam gefunden unter: {path}",
-    "users_found": "👤 {count} Steam-Benutzer gefunden",
-    "steam_not_found": "⚠️  Steam nicht gefunden",
-    "starting": "🚀 Starte Anwendung mit PyQt6...",
-    "qt_theme": "✓ Nutze natives Qt-Theme",
-    "error": "❌ Fehler: {error}"
   }
 }
