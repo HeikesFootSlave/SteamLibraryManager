@@ -1,7 +1,8 @@
 """
-Main Window - Complete Logic, OAuth & Secure Settings
+Main Window - Strings Localized
 Speichern als: src/ui/main_window.py
 """
+# ... (Imports wie gehabt)
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLineEdit, QPushButton, QLabel, QToolBar, QMenu,
@@ -38,13 +39,11 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(t('ui.main.title'))
         self.resize(1400, 800)
 
-        # Managers
         self.game_manager: Optional[GameManager] = None
         self.vdf_parser: Optional[LocalConfigParser] = None
         self.steam_scraper: Optional[SteamStoreScraper] = None
         self.appinfo_manager: Optional[AppInfoManager] = None
         
-        # Auth Manager (NEU)
         self.auth_manager = SteamAuthManager()
         self.auth_manager.auth_success.connect(self._on_steam_login_success)
         self.auth_manager.auth_error.connect(self._on_steam_login_error)
@@ -71,42 +70,36 @@ class MainWindow(QMainWindow):
         edit_menu.addAction(QAction(t('ui.menu.bulk_edit'), self, triggered=self.bulk_edit_metadata))
         edit_menu.addAction(QAction(t('ui.toolbar.auto_categorize'), self, triggered=self.auto_categorize))
 
-        # 3. SETTINGS (War vorher Tools)
-        settings_menu = menubar.addMenu(t('ui.toolbar.settings')) # Workaround für "Settings" Title
+        # 3. SETTINGS
+        settings_menu = menubar.addMenu(t('ui.toolbar.settings'))
         settings_menu.addAction(QAction(t('ui.menu.settings'), self, triggered=self.show_settings))
         settings_menu.addSeparator()
         settings_menu.addAction(QAction(t('ui.menu.restore'), self, triggered=self.restore_metadata_changes))
 
         # 4. HELP
         help_menu = menubar.addMenu(t('ui.menu.help'))
-        
         github_action = QAction(t('ui.menu.github'), self)
         github_action.triggered.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/")))
         help_menu.addAction(github_action)
         
         check_updates = QAction(t('ui.menu.check_updates'), self)
-        # check_updates.triggered.connect(...) # TODO
         help_menu.addAction(check_updates)
         
         donate_action = QAction(t('ui.menu.donate'), self)
-        # URL muss noch angepasst werden
         donate_action.triggered.connect(lambda: QDesktopServices.openUrl(QUrl("https://paypal.me/DeinAccount")))
         help_menu.addAction(donate_action)
         
         help_menu.addSeparator()
         help_menu.addAction(QAction(t('ui.menu.about'), self, triggered=self.show_about))
 
-        # User Info Label
         self.user_label = QLabel(t('ui.status.not_logged_in'))
         self.user_label.setStyleSheet("padding: 5px 10px;")
         menubar.setCornerWidget(self.user_label, Qt.Corner.TopRightCorner)
 
-        # Toolbar
         self.toolbar = QToolBar()
         self.addToolBar(self.toolbar)
         self._refresh_toolbar()
 
-        # Central Widget
         central = QWidget()
         self.setCentralWidget(central)
         layout = QVBoxLayout(central)
@@ -114,13 +107,11 @@ class MainWindow(QMainWindow):
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
-        # LEFT SIDE
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(2)
 
-        # Search
         search_layout = QHBoxLayout()
         search_layout.addWidget(QLabel(t('ui.main.search_icon')))
         self.search_entry = QLineEdit()
@@ -133,7 +124,6 @@ class MainWindow(QMainWindow):
         search_layout.addWidget(clear_btn)
         left_layout.addLayout(search_layout)
 
-        # Tree Controls
         btn_layout = QHBoxLayout()
         expand_btn = QPushButton(t('ui.categories.sym_expand') + " " + t('ui.main.expand_all'))
         expand_btn.clicked.connect(lambda: self.tree.expandAll())
@@ -144,7 +134,6 @@ class MainWindow(QMainWindow):
         btn_layout.addWidget(collapse_btn)
         left_layout.addLayout(btn_layout)
 
-        # Tree Widget
         self.tree = GameTreeWidget()
         self.tree.game_clicked.connect(self.on_game_selected)
         self.tree.game_right_clicked.connect(self.on_game_right_click)
@@ -154,7 +143,6 @@ class MainWindow(QMainWindow):
 
         splitter.addWidget(left_widget)
 
-        # RIGHT SIDE (Details)
         self.details_widget = GameDetailsWidget()
         self.details_widget.category_changed.connect(self._on_category_changed_from_details)
         self.details_widget.edit_metadata.connect(self.edit_game_metadata)
@@ -174,29 +162,25 @@ class MainWindow(QMainWindow):
         self.toolbar.addAction(t('ui.toolbar.settings'), self.show_settings)
         self.toolbar.addSeparator()
         
-        # Login Action
         login_action = QAction(t('ui.toolbar.login'), self)
         login_action.triggered.connect(self._start_steam_login)
         self.toolbar.addAction(login_action)
 
-    # --- OAUTH / LOGIN LOGIC ---
     def _start_steam_login(self):
         QMessageBox.information(self, t('ui.login.title'), t('ui.login.info'))
         self.auth_manager.start_login()
         self.set_status(t('ui.login.status_waiting'))
 
     def _on_steam_login_success(self, code: str):
-        # TODO: Hier Code gegen Token tauschen (sobald Client Secret Logik da ist)
+        # TODO: Token Swap logic here
         print(f"Auth Code: {code}")
         self.set_status(t('ui.login.status_success'))
         QMessageBox.information(self, t('ui.login.title'), t('ui.login.status_success'))
-        # Hier könnte man jetzt z.B. user_id aktualisieren
 
     def _on_steam_login_error(self, error: str):
         self.set_status(t('ui.login.status_failed'))
         QMessageBox.critical(self, t('ui.dialogs.error'), error)
 
-    # --- MAIN LOGIC (RESTORED) ---
     def force_save(self):
         if self.vdf_parser:
             if self.vdf_parser.save():
@@ -225,7 +209,8 @@ class MainWindow(QMainWindow):
         self.game_manager = GameManager(config.STEAM_API_KEY, config.CACHE_DIR)
         api_success = self.game_manager.load_from_steam_api(long_id)
         if not api_success:
-            self.set_status(t('ui.status.api_error') + " (Offline)")
+            # FIX: Offline Message Localized
+            self.set_status(t('ui.status.api_error') + t('ui.status.offline_mode'))
         self.game_manager.merge_with_localconfig(self.vdf_parser)
         self.steam_scraper = SteamStoreScraper(config.CACHE_DIR, config.TAGS_LANGUAGE)
         self.appinfo_manager = AppInfoManager(config.STEAM_PATH)
@@ -235,7 +220,8 @@ class MainWindow(QMainWindow):
         if api_success:
             self.set_status(t('ui.status.loaded', count=len(self.game_manager.games)))
         else:
-            self.set_status(t('ui.status.loaded', count=len(self.game_manager.games)) + " (Offline)")
+            # FIX: Offline Message Localized
+            self.set_status(t('ui.status.loaded', count=len(self.game_manager.games)) + t('ui.status.offline_mode'))
 
     def _populate_categories(self):
         if not self.game_manager: return
@@ -424,7 +410,8 @@ class MainWindow(QMainWindow):
         self.vdf_parser.save()
         progress.close()
         self._populate_categories()
-        QMessageBox.information(self, t('ui.dialogs.success'), t('ui.dialogs.categorize_complete', methods=len(methods), backup="Backup created"))
+        # FIX: Backup Message Localized
+        QMessageBox.information(self, t('ui.dialogs.success'), t('ui.dialogs.categorize_complete', methods=len(methods), backup=t('ui.dialogs.backup_msg')))
 
     def edit_game_metadata(self, game: Game):
         meta = self.appinfo_manager.get_app_metadata(game.app_id)
