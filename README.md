@@ -4,7 +4,7 @@
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Steam%20Deck-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://store.steampowered.com/steamdeck)
 [![Made with PyCharm](https://img.shields.io/badge/Made%20with-PyCharm-000000?style=for-the-badge&logo=pycharm&logoColor=white)](https://www.jetbrains.com/pycharm/)
 [![Status](https://img.shields.io/badge/Status-In%20Development-orange?style=for-the-badge)]()
-[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)]()
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Ein moderner, leistungsstarker Bibliotheks-Manager für Steam auf Linux und dem Steam Deck.  
 Organisiere deine Sammlung, bearbeite Metadaten und automatisiere Kategorien.
@@ -46,7 +46,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 
 # 3. Abhängigkeiten installieren
-pip install -r requirements.txt
+pip install -r requirements-user.txt
 
 # 4. Starten
 python src/main.py
